@@ -14,6 +14,8 @@ This repository contains **code only**. It ships no customer data, no database, 
 | Skill `easm-ingest` | `~/.flocks/plugins/skills/easm-ingest/` | lets Rex run the ingest from a chat with attached deliverables |
 | Data contract | `schema/easm-data-pack.schema.json` | the JSON data pack the workflow accepts (hand it to whoever produces the reports) |
 
+Paths follow Flocks itself: plugins go to `~/.flocks/plugins/` of the user that runs Flocks (use `--home` if that is a service account), and `easm.db` goes to the Flocks data directory (`FLOCKS_DATA_DIR`, `XDG_DATA_HOME/flocks` or `FLOCKS_ROOT/data`, default `~/.flocks/data`). If the Flocks workspace directory was customised, pass an absolute `inbox_dir` to the workflow.
+
 Requirements: Flocks **2026.8.17** (the scene-workspace page runtime this was built against), Python 3.12 in the Flocks virtualenv, Node/esbuild as bundled with the Flocks WebUI. Flocks Pro is only needed if customers should log in with their own member accounts.
 
 ## Install
@@ -23,7 +25,7 @@ Requirements: Flocks **2026.8.17** (the scene-workspace page runtime this was bu
 Paste this into a Rex session on the target Flocks instance:
 
 ```
-Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom/flocks-easm-portal into ~/.flocks/workspace/tmp/flocks-easm-portal (git pull if it already exists), then run `python install.py` inside that directory using the Python that runs Flocks, and show me the output.
+Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom/flocks-easm-portal into ~/.flocks/workspace/tmp/flocks-easm-portal (git pull if it already exists), then run `python3 install.py` (or `python install.py` on Windows) inside that directory, and show me the output.
 ```
 
 ### By hand
@@ -31,10 +33,10 @@ Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom
 ```bash
 git clone https://github.com/wuyunfan2018-dotcom/flocks-easm-portal
 cd flocks-easm-portal
-python install.py            # add --hub to also list it in the Flocks Hub page, --dry-run to preview
+python3 install.py           # Windows: python install.py · add --hub to list it in the Flocks Hub page, --dry-run to preview
 ```
 
-`install.py` is idempotent: run it again to upgrade. It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
+`install.py` is idempotent: run it again to upgrade. It works on macOS, Linux and Windows with any Python >= 3.9 and needs no third-party packages; it finds the Flocks virtualenv through the `flocks` launcher to build the page bundles (if that fails, the Flocks file watcher builds them while Flocks is running). It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
 
 ### After installing
 

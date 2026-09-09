@@ -12,11 +12,29 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
 import sqlite3
 from pathlib import Path
 
-DB = Path.home() / ".flocks" / "data" / "easm.db"
+
+def easm_db_path() -> Path:
+    """easm.db lives in the Flocks data directory: EASM_DB_PATH > FLOCKS_DATA_DIR > XDG_DATA_HOME/flocks > FLOCKS_ROOT/data > ~/.flocks/data."""
+    explicit = os.environ.get("EASM_DB_PATH")
+    if explicit:
+        return Path(explicit).expanduser()
+    data_dir = os.environ.get("FLOCKS_DATA_DIR")
+    if data_dir:
+        return Path(data_dir).expanduser() / "easm.db"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg:
+        return Path(xdg).expanduser() / "flocks" / "easm.db"
+    root = os.environ.get("FLOCKS_ROOT")
+    base = Path(root).expanduser() if root else Path.home() / ".flocks"
+    return base / "data" / "easm.db"
+
+
+DB = easm_db_path()
 PAGE_SIZE_MAX = 100
 SECRET_FIELDS = ("password_enc", "password_fp")
 MODULES = {

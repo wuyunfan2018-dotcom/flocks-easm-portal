@@ -31,7 +31,24 @@ from flocks.contracts.access.pipeline import OverlayEntry
 PAGE_ID = "easm-findings"
 CONTRACT_ID = "easm.findings.operations"
 CONTRACT_VERSION = "1.0"
-DB_PATH = Path(os.environ.get("EASM_DB_PATH") or (Path.home() / ".flocks" / "data" / "easm.db"))
+
+def easm_db_path() -> Path:
+    """easm.db lives in the Flocks data directory: EASM_DB_PATH > FLOCKS_DATA_DIR > XDG_DATA_HOME/flocks > FLOCKS_ROOT/data > ~/.flocks/data."""
+    explicit = os.environ.get("EASM_DB_PATH")
+    if explicit:
+        return Path(explicit).expanduser()
+    data_dir = os.environ.get("FLOCKS_DATA_DIR")
+    if data_dir:
+        return Path(data_dir).expanduser() / "easm.db"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg:
+        return Path(xdg).expanduser() / "flocks" / "easm.db"
+    root = os.environ.get("FLOCKS_ROOT")
+    base = Path(root).expanduser() if root else Path.home() / ".flocks"
+    return base / "data" / "easm.db"
+
+
+DB_PATH = easm_db_path()
 CUSTOMER_STATUSES = ("open", "acknowledged", "in_progress", "resolved", "false_positive", "risk_accepted")
 FIELDS_BY_OP = {"set_status": "customer_status", "set_owner": "owner", "set_note": "customer_note"}
 MAX_OWNER = 120

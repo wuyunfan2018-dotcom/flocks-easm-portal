@@ -99,12 +99,32 @@ def flocks_python() -> Path | None:
     import re
     import shutil as _sh
 
+    def python_next_to(script: Path) -> Path | None:
+        for name in ("python", "python3", "python.exe"):
+            sibling = script.parent / name
+            if sibling.is_file():
+                return sibling
+        return None
+
     for cand in (Path.home() / ".local" / "bin" / "flocks.cmd", Path.home() / ".local" / "bin" / "flocks", Path(_sh.which("flocks") or "")):
-        if cand.is_file():
-            text = cand.read_text(encoding="utf-8", errors="replace")
-            m = re.search(r'"?([^"\r\n]*?(?:python(?:3(?:\.\d+)?)?(?:\.exe)?))"?\s+(?:-m\s+)?flocks', text)
-            if m and Path(m.group(1)).is_file():
-                return Path(m.group(1))
+        if not cand.is_file():
+            continue
+        real = cand.resolve()                      # macOS/Linux: ~/.local/bin/flocks -> <root>/.venv/bin/flocks
+        sibling = python_next_to(real)
+        if sibling:
+            return sibling
+        text = real.read_text(encoding="utf-8", errors="replace")
+        head = text.splitlines()[0] if text else ""
+        if head.startswith("#!"):                  # console-script shebang -> the venv interpreter
+            shebang = Path(head[2:].strip().split()[-1])
+            if shebang.is_file():
+                return shebang
+        m = re.search(r'"?([^"\r\n]*?(?:python(?:3(?:\.\d+)?)?(?:\.exe)?))"?\s+(?:-m\s+)?flocks', text)  # Windows .cmd
+        if m and Path(m.group(1)).is_file():
+            return Path(m.group(1))
+    for tool_python in (Path.home() / ".local" / "share" / "uv" / "tools" / "flocks" / "bin" / "python",):
+        if tool_python.is_file():
+            return tool_python
     return None
 
 

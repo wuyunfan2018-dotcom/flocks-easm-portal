@@ -7,7 +7,8 @@ from pathlib import Path
 
 HOME = Path.home()
 WF_DIR = HOME / ".flocks" / "plugins" / "workflows" / "easm_ingest"
-PAGE_SHOTS = HOME / ".flocks" / "plugins" / "contracts" / "webui" / "easm" / "easm-data-leaks" / "assets" / "screenshots"
+_WEBUI_ROOT = Path(os.environ.get("FLOCKS_CONTRACTS_WEBUI_ROOT") or (HOME / ".flocks" / "plugins" / "contracts" / "webui")).expanduser()
+PAGE_SHOTS = _WEBUI_ROOT / "easm" / "easm-data-leaks" / "assets" / "screenshots"
 
 MODULE_MAP = [
     ("domains",            ["assets", "domains"],                    False),

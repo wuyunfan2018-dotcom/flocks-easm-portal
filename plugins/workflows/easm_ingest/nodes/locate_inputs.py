@@ -7,7 +7,24 @@ from pathlib import Path
 HOME = Path.home()
 WF_DIR = HOME / ".flocks" / "plugins" / "workflows" / "easm_ingest"
 WORKSPACE = HOME / ".flocks" / "workspace"
-DEFAULT_DB = HOME / ".flocks" / "data" / "easm.db"
+
+def easm_db_path() -> Path:
+    """easm.db lives in the Flocks data directory: EASM_DB_PATH > FLOCKS_DATA_DIR > XDG_DATA_HOME/flocks > FLOCKS_ROOT/data > ~/.flocks/data."""
+    explicit = os.environ.get("EASM_DB_PATH")
+    if explicit:
+        return Path(explicit).expanduser()
+    data_dir = os.environ.get("FLOCKS_DATA_DIR")
+    if data_dir:
+        return Path(data_dir).expanduser() / "easm.db"
+    xdg = os.environ.get("XDG_DATA_HOME")
+    if xdg:
+        return Path(xdg).expanduser() / "flocks" / "easm.db"
+    root = os.environ.get("FLOCKS_ROOT")
+    base = Path(root).expanduser() if root else Path.home() / ".flocks"
+    return base / "data" / "easm.db"
+
+
+DEFAULT_DB = easm_db_path()
 PAGE_SHOTS = HOME / ".flocks" / "plugins" / "contracts" / "webui" / "easm" / "easm-data-leaks" / "assets" / "screenshots"
 
 period_id = (inputs.get("period_id") or "").strip()
