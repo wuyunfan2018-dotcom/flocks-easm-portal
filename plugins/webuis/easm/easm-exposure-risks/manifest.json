@@ -1,0 +1,12 @@
+{
+  "id": "easm-exposure-risks",
+  "title": "暴露风险",
+  "titleEn": "Exposure Risks",
+  "route": "/contracts/webui/easm-exposure-risks",
+  "icon": "ShieldAlert",
+  "order": 30,
+  "enabled": true,
+  "placement": "home.after",
+  "entry": "src/index.tsx",
+  "updatedAt": 0
+}

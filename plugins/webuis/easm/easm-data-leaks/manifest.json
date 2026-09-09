@@ -1,0 +1,12 @@
+{
+  "id": "easm-data-leaks",
+  "title": "数据泄露",
+  "titleEn": "Data Leaks",
+  "route": "/contracts/webui/easm-data-leaks",
+  "icon": "Database",
+  "order": 40,
+  "enabled": true,
+  "placement": "home.after",
+  "entry": "src/index.tsx",
+  "updatedAt": 0
+}

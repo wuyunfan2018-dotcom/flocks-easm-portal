@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "hub.component.v1",
+  "id": "easm-portal",
+  "name": "ThreatBook EASM Portal",
+  "nameCn": "ThreatBook EASM Portal",
+  "description": "Composite package for the ThreatBook EASM Portal: workspace pages, access contracts, ingest workflow and chat skill.",
+  "descriptionCn": "ThreatBook EASM Portal 组件包：工作区页面、访问契约、入库工作流和对话技能。",
+  "components": [
+    { "type": "webui", "id": "easm" },
+    { "type": "workflow", "id": "easm_ingest" },
+    { "type": "skill", "id": "easm-ingest" }
+  ]
+}

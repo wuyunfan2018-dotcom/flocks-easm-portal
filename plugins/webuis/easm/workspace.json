@@ -1,0 +1,17 @@
+{
+  "id": "easm",
+  "version": "0.1.0",
+  "title": "EASM Portal",
+  "titleEn": "ThreatBook EASM Portal",
+  "icon": "Globe",
+  "order": 10,
+  "enabled": true,
+  "placement": "sceneWorkspace",
+  "defaultPageId": "easm-overview",
+  "sections": [
+    { "id": "posture", "label": "态势", "labelEn": "Posture", "pageIds": ["easm-overview"], "defaultPageId": "easm-overview", "contentPadding": "none" },
+    { "id": "surface", "label": "攻击面", "labelEn": "Attack surface", "pageIds": ["easm-attack-surface", "easm-exposure-risks"], "defaultPageId": "easm-attack-surface", "contentPadding": "none" },
+    { "id": "leaks", "label": "数据泄露", "labelEn": "Data leaks", "pageIds": ["easm-data-leaks"], "defaultPageId": "easm-data-leaks", "contentPadding": "none" },
+    { "id": "operations", "label": "运营", "labelEn": "Operations", "pageIds": ["easm-findings", "easm-reports"], "defaultPageId": "easm-findings", "contentPadding": "none" }
+  ]
+}

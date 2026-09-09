@@ -1,0 +1,11 @@
+{
+  "id": "easm_ingest",
+  "name": "EASM period ingest",
+  "nameI18n": { "zh-CN": "EASM 期次入库", "en-US": "EASM period ingest" },
+  "description": "Convert EASM deliverables or a ready data pack into the portal's SQLite snapshot (draft), compute aggregates and period diff.",
+  "category": "default",
+  "status": "active",
+  "createdBy": null,
+  "createdAt": 0,
+  "updatedAt": 0
+}

@@ -1,0 +1,10 @@
+The following fonts are bundled as page assets (plugins/webuis/easm/easm-overview/assets/fonts/) and are
+licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org):
+
+  Inter          Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+  Oswald         Copyright 2016 The Oswald Project Authors (https://github.com/googlefonts/OswaldFont)
+  JetBrains Mono Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+The OFL permits bundling, embedding and redistribution of the font software provided the fonts are not sold
+by themselves and this notice is preserved. The Reserved Font Names, if any, are not used for modified
+versions. The full license text is available at https://openfontlicense.org/open-font-license-official-text/.

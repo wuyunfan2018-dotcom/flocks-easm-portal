@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "hub.plugin.v1",
+  "id": "easm-portal",
+  "type": "component",
+  "name": "ThreatBook EASM Portal",
+  "nameCn": "ThreatBook EASM Portal 套件",
+  "description": "Composite installer for the ThreatBook EASM Portal: six workspace pages with access contracts, the easm_ingest workflow and the easm-ingest skill. Ships no data; ingest a period after installing.",
+  "descriptionCn": "ThreatBook EASM Portal 套件安装器：六个工作区页面（含访问契约）、easm_ingest 入库工作流和 easm-ingest 技能。不含任何数据，安装后灌入期次即可。",
+  "version": "0.9.0",
+  "author": "ThreatBook",
+  "license": "Proprietary",
+  "homepage": "https://github.com/wuyunfan2018-dotcom/flocks-easm-portal",
+  "category": "workflow-automation",
+  "tags": ["easm", "attack-surface", "integration"],
+  "useCases": ["security-reporting"],
+  "domains": ["security-ops"],
+  "capabilities": ["workflow"],
+  "trust": "internal",
+  "source": { "kind": "bundled", "path": "plugins/components/easm-portal" },
+  "compatibility": { "flocks": ">=2026.8.17", "os": ["darwin", "linux", "windows"] },
+  "dependencies": { "skills": [], "tools": [], "python": [], "external": [] },
+  "permissions": { "tools": [], "network": false, "shell": false, "filesystem": "read-write" },
+  "risk": { "level": "medium", "reasons": [] },
+  "entrypoints": ["component.json"],
+  "components": [
+    { "type": "webui", "id": "easm" },
+    { "type": "workflow", "id": "easm_ingest" },
+    { "type": "skill", "id": "easm-ingest", "adoptExisting": true }
+  ],
+  "checksums": {}
+}

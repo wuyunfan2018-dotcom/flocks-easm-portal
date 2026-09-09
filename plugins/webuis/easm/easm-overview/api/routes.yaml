@@ -1,0 +1,36 @@
+routes:
+  - method: GET
+    path: /summary
+    handler: handlers.get_summary
+    timeoutMs: 10000
+    description: Period metadata, KPIs, exposure index, narrative, coverage, aggregates (latest published by default; ?period=<id>; admins may see drafts)
+  - method: GET
+    path: /periods
+    handler: handlers.get_periods
+    timeoutMs: 5000
+    description: Periods visible to the caller
+  - method: GET
+    path: /rows
+    handler: handlers.get_rows
+    timeoutMs: 15000
+    description: Paged rows for a module (?module=&page=&size=&q=&sort=&dir=&f.<field>=value)
+  - method: GET
+    path: /entity
+    handler: handlers.get_entity
+    timeoutMs: 5000
+    description: One record (?module=&id=)
+  - method: GET
+    path: /findings/stats
+    handler: handlers.get_findings_stats
+    timeoutMs: 5000
+    description: Findings counts by customer status (overlay-aware)
+  - method: GET
+    path: /findings/export
+    handler: handlers.get_findings_export
+    timeoutMs: 15000
+    description: Findings of the period as CSV text (overlay-aware)
+  - method: GET
+    path: /report
+    handler: handlers.get_report
+    timeoutMs: 10000
+    description: Report bundle (scope, sources, narrative, coverage; admins also get cross-checks, warnings, diff)

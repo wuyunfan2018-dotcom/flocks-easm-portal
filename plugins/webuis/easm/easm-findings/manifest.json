@@ -1,0 +1,12 @@
+{
+  "id": "easm-findings",
+  "title": "发现与处置",
+  "titleEn": "Findings Tracker",
+  "route": "/contracts/webui/easm-findings",
+  "icon": "ListChecks",
+  "order": 50,
+  "enabled": true,
+  "placement": "home.after",
+  "entry": "src/index.tsx",
+  "updatedAt": 0
+}

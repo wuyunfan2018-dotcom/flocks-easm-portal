@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*/dist/
+plugins/webuis/easm/*/dist/
+plugins/webuis/easm/*/assets/screenshots/
+plugins/workflows/easm_ingest/testdata/
+*.db
+*.db-*
+datapack*.json
+previous-summary.json
+inbox/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,12 @@
+{
+  "id": "easm-attack-surface",
+  "title": "攻击面",
+  "titleEn": "Attack Surface",
+  "route": "/contracts/webui/easm-attack-surface",
+  "icon": "Network",
+  "order": 20,
+  "enabled": true,
+  "placement": "home.after",
+  "entry": "src/index.tsx",
+  "updatedAt": 0
+}

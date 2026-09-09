@@ -1,0 +1,12 @@
+{
+  "id": "easm-reports",
+  "title": "报告与期次",
+  "titleEn": "Reports",
+  "route": "/contracts/webui/easm-reports",
+  "icon": "FileText",
+  "order": 60,
+  "enabled": true,
+  "placement": "home.after",
+  "entry": "src/index.tsx",
+  "updatedAt": 0
+}
