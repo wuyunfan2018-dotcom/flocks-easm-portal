@@ -44,7 +44,7 @@ def copy_tree(src: Path, dst: Path, *, dry: bool, keep: set[str] = frozenset(), 
             rel = child.relative_to(dst).as_posix()
             if any(rel == k or rel.startswith(k + "/") for k in keep):
                 continue
-            if child.is_file() and not (src / rel).exists():
+            if child.is_file() and "__pycache__" not in child.parts and not (src / rel).exists():
                 if not dry:
                     child.unlink()
                 n += 1
@@ -94,11 +94,32 @@ def copy_tree_file(src: Path, dst: Path, *, dry: bool) -> None:
     log(f"  {dst.name}: {'would update' if dry else 'updated'}")
 
 
+def flocks_python() -> Path | None:
+    """Interpreter of the Flocks virtualenv, found through the `flocks` CLI shim (~/.local/bin/flocks[.cmd])."""
+    import re
+    import shutil as _sh
+
+    for cand in (Path.home() / ".local" / "bin" / "flocks.cmd", Path.home() / ".local" / "bin" / "flocks", Path(_sh.which("flocks") or "")):
+        if cand.is_file():
+            text = cand.read_text(encoding="utf-8", errors="replace")
+            m = re.search(r'"?([^"\r\n]*?(?:python(?:3(?:\.\d+)?)?(?:\.exe)?))"?\s+(?:-m\s+)?flocks', text)
+            if m and Path(m.group(1)).is_file():
+                return Path(m.group(1))
+    return None
+
+
 def build_pages(home: Path) -> None:
     try:
         from flocks.contracts.webui.builder import WebUIPageBuilder  # type: ignore
         from flocks.contracts.webui.store import WebUIPagesStore  # type: ignore
     except Exception:
+        py = flocks_python()
+        if py and Path(py).resolve() != Path(sys.executable).resolve():
+            import subprocess
+
+            log(f"  building the pages with the Flocks interpreter {py}")
+            subprocess.run([str(py), str(Path(__file__).resolve()), "--build-only", "--home", str(home)], check=False)
+            return
         log("  Flocks Python package not importable from this interpreter: skipping the build step.")
         log("  If Flocks is running, its file watcher builds the pages automatically; otherwise open the workspace and click Build.")
         return
@@ -174,12 +195,16 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--hub", action="store_true", help="also register in the bundled Flocks Hub catalog")
     ap.add_argument("--no-build", action="store_true")
+    ap.add_argument("--build-only", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--uninstall", action="store_true")
     args = ap.parse_args()
     home = Path(args.home).expanduser().resolve()
     if not (home / ".flocks").is_dir():
         log(f"{home / '.flocks'} does not exist. Is Flocks installed for this user? Use --home to point at the right directory.")
         return 2
+    if args.build_only:
+        build_pages(home)
+        return 0
     if args.uninstall:
         uninstall(home, dry=args.dry_run)
         return 0
