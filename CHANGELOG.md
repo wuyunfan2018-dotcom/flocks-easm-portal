@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 — 2026-10-01
+
+- Flocks 2026.9.23 support: the installer now registers the portal in the bundled Flocks Hub catalog by default (`--no-hub` to skip). The new Flocks hides scene workspaces that no Hub scene suite declares, which made the portal vanish from the navigation after the upgrade. Re-run `install.py` after every Flocks upgrade.
+- Hub manifests: `trust` is now `verified` (`internal` is rejected by the 2026.9.23 manifest schema).
+- Paths follow the Flocks data directory (`FLOCKS_DATA_DIR`, `XDG_DATA_HOME/flocks`, `FLOCKS_ROOT/data`); the installer finds the Flocks virtualenv on macOS/Linux as well as Windows.
+
 ## 0.9.0 — 2026-09-09
 
 First public build.

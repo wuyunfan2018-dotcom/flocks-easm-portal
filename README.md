@@ -33,10 +33,10 @@ Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom
 ```bash
 git clone https://github.com/wuyunfan2018-dotcom/flocks-easm-portal
 cd flocks-easm-portal
-python3 install.py           # Windows: python install.py · add --hub to list it in the Flocks Hub page, --dry-run to preview
+python3 install.py           # Windows: python install.py · --dry-run to preview · --no-hub to skip the Hub catalog registration
 ```
 
-`install.py` is idempotent: run it again to upgrade. It works on macOS, Linux and Windows with any Python >= 3.9 and needs no third-party packages; it finds the Flocks virtualenv through the `flocks` launcher to build the page bundles (if that fails, the Flocks file watcher builds them while Flocks is running). It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
+`install.py` is idempotent: run it again to upgrade, **and run it again after every Flocks upgrade**: Flocks 2026.9.23 and later only show a scene workspace when a Hub scene suite declares it, and a Flocks upgrade replaces the Hub catalog, so the portal disappears from the navigation until the installer re-registers it (the data is untouched). After the installer finishes, click *Refresh* on the Flocks Hub page or restart Flocks so the catalog is re-read. It works on macOS, Linux and Windows with any Python >= 3.9 and needs no third-party packages; it finds the Flocks virtualenv through the `flocks` launcher to build the page bundles (if that fails, the Flocks file watcher builds them while Flocks is running). It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
 
 ### After installing
 

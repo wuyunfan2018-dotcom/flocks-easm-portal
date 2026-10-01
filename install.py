@@ -155,8 +155,8 @@ def build_pages(home: Path) -> None:
         log(f"  build step failed ({exc}); the Flocks watcher will retry while Flocks is running.")
 
 
-def register_hub(dry: bool) -> None:
-    """Stage the package into the bundled Flocks Hub catalog so it appears in the Hub page (optional)."""
+def hub_root() -> Path | None:
+    """The bundled Flocks Hub catalog (<flocks source>/.flocks/flockshub), if reachable from this interpreter."""
     root = os.environ.get("FLOCKS_HUB_ROOT")
     candidates = [Path(root)] if root else []
     try:
@@ -166,10 +166,20 @@ def register_hub(dry: bool) -> None:
         candidates += [pkg / ".flocks" / "flockshub", pkg.parent / ".flocks" / "flockshub"]
     except Exception:
         pass
-    hub = next((c for c in candidates if (c / "index.json").is_file()), None)
+    return next((c for c in candidates if (c / "index.json").is_file()), None)
+
+
+def register_hub(dry: bool) -> bool:
+    """Register the package in the bundled Flocks Hub catalog.
+
+    Flocks 2026.9.23+ only shows a scene workspace in the navigation when a Hub scene suite
+    (component) declares it, so this step is what makes the portal visible there. A Flocks
+    upgrade replaces the catalog: re-run the installer after upgrading Flocks.
+    """
+    hub = hub_root()
     if hub is None:
-        log("  Hub catalog not found (set FLOCKS_HUB_ROOT or run with the Flocks Python); skipping --hub.")
-        return
+        log("  Hub catalog not found from this interpreter (set FLOCKS_HUB_ROOT or run with the Flocks Python).")
+        return False
     log(f"  Hub catalog: {hub}")
     for rel in ("webuis/easm", "workflows/easm_ingest", "skills/easm-ingest", "tools/python/easm_workspace_query", "agents/easm-analyst", "components/easm-portal"):
         src = PLUGINS / rel
@@ -187,7 +197,34 @@ def register_hub(dry: bool) -> None:
     index["plugins"] = entries
     if not dry:
         index_path.write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    log("  index.json: EASM entries registered (open Flocks Hub and click Refresh, then Install on 'ThreatBook EASM Portal').")
+    log("  index.json: EASM entries registered. Flocks caches the catalog: click Refresh on the Flocks Hub page")
+    log("  (or restart Flocks) and the ThreatBook EASM Portal appears under Scene Workspaces.")
+    return True
+
+
+def post_install(home: Path, *, want_hub: bool, want_build: bool) -> None:
+    """Hub registration + page build. Both need the Flocks Python; re-exec there when this is not it."""
+    if not (want_hub or want_build):
+        return
+    try:
+        import flocks  # type: ignore  # noqa: F401
+
+        in_flocks_python = True
+    except Exception:
+        in_flocks_python = False
+    if not in_flocks_python and not os.environ.get("FLOCKS_HUB_ROOT"):
+        py = flocks_python()
+        if py and Path(py).resolve() != Path(sys.executable).resolve():
+            import subprocess
+
+            log(f"  continuing with the Flocks interpreter {py}")
+            flags = ([] if want_hub else ["--no-hub"]) + ([] if want_build else ["--no-build"])
+            subprocess.run([str(py), str(Path(__file__).resolve()), "--post-install", "--home", str(home), *flags], check=False)
+            return
+    if want_hub:
+        register_hub(dry=False)
+    if want_build:
+        build_pages(home)
 
 
 def uninstall(home: Path, *, dry: bool) -> None:
@@ -213,9 +250,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--home", default=str(Path.home()), help="directory that contains .flocks/ (default: your home)")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--hub", action="store_true", help="also register in the bundled Flocks Hub catalog")
+    ap.add_argument("--hub", action="store_true", help="(default) register in the bundled Flocks Hub catalog; required for Flocks 2026.9.23+")
+    ap.add_argument("--no-hub", action="store_true", help="skip the Hub catalog registration")
     ap.add_argument("--no-build", action="store_true")
     ap.add_argument("--build-only", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--post-install", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--uninstall", action="store_true")
     args = ap.parse_args()
     home = Path(args.home).expanduser().resolve()
@@ -225,14 +264,21 @@ def main() -> int:
     if args.build_only:
         build_pages(home)
         return 0
+    if args.post_install:
+        if not args.no_hub:
+            register_hub(dry=False)
+        if not args.no_build:
+            build_pages(home)
+        return 0
     if args.uninstall:
         uninstall(home, dry=args.dry_run)
         return 0
     install(home, dry=args.dry_run)
-    if args.hub:
-        register_hub(args.dry_run)
-    if not args.dry_run and not args.no_build:
-        build_pages(home)
+    if args.dry_run:
+        if not args.no_hub:
+            register_hub(dry=True)
+    else:
+        post_install(home, want_hub=not args.no_hub, want_build=not args.no_build)
     log("")
     log("Next steps:")
     log("  1. Put a Fernet key in the EASM_SECRET_KEY environment variable of the Flocks service and restart Flocks")
