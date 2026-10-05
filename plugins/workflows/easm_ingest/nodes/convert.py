@@ -83,6 +83,27 @@ else:
     if rebrand:
         cmd += ["--rebrand", rebrand]
 
+    # Self-heal: a Flocks upgrade can rebuild the venv and drop the converter's packages while the workflow
+    # engine's requirements marker (~/.cache/flocks-workflow/requirements/<hash>.installed) still says "installed".
+    # Probe the interpreter that will run the converter; reinstall the missing ones the way Flocks does (uv pip).
+    REQUIREMENTS = {"openpyxl": "openpyxl>=3.1", "xlrd": "xlrd>=2.0", "docx": "python-docx>=1.1",
+                    "PIL": "pillow>=10", "cryptography": "cryptography>=42", "jsonschema": "jsonschema>=4"}
+    probe_src = "import importlib.util, sys; print(' '.join(m for m in sys.argv[1:] if importlib.util.find_spec(m) is None))"
+    probe = subprocess.run([sys.executable, "-c", probe_src, *REQUIREMENTS], capture_output=True, text=True, timeout=120)
+    missing = [REQUIREMENTS[m] for m in (probe.stdout or "").split() if m in REQUIREMENTS]
+    deps_reinstalled = []
+    if missing:
+        uv = shutil.which("uv")
+        install_cmd = ([uv, "pip", "install", "--python", sys.executable, *missing] if uv
+                       else [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "-q", *missing])
+        inst = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
+        if inst.returncode != 0:
+            tail = (inst.stderr or inst.stdout or "")[-1500:]
+            raise RuntimeError("converter dependencies missing after a Flocks upgrade and reinstall failed: "
+                               + ", ".join(missing) + " -- " + tail
+                               + " -- fix by hand: uv pip install --python " + sys.executable + " " + " ".join(missing))
+        deps_reinstalled = missing
+
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, env=dict(os.environ), timeout=1500)
     except subprocess.TimeoutExpired as exc:
@@ -91,6 +112,8 @@ else:
         raise RuntimeError(f"easm_convert.py failed to start: {exc}")
 
     convert_log = (completed.stdout or "")[-4000:]
+    if deps_reinstalled:
+        convert_log = "[deps] reinstalled after Flocks upgrade: " + ", ".join(deps_reinstalled) + chr(10) + convert_log
     if completed.returncode != 0:
         stderr_tail = "\n".join((completed.stderr or "").splitlines()[-40:])
         convert_error_tail = stderr_tail

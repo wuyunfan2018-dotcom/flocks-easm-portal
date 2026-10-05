@@ -44,8 +44,23 @@ if not report_date:
 if not re.match(r"^\d{4}-\d{2}-\d{2}$", report_date):
     raise RuntimeError(f"report_date {report_date!r} must match YYYY-MM-DD")
 
-customer_id = (inputs.get("customer_id") or "customer").strip() or "customer"
-customer_name = (inputs.get("customer_name") or "Customer Ltd").strip() or "Customer Ltd"
+# Per-instance defaults (never shipped with the package): ~/.flocks/workspace/easm/ingest-defaults.json
+# e.g. {"customer_id": "...", "customer_name": "...", "rebrand": "OldBrand:NewBrand"}. Explicit run inputs win.
+DEFAULTS_FILE = WORKSPACE / "easm" / "ingest-defaults.json"
+ingest_defaults = {}
+if DEFAULTS_FILE.is_file():
+    try:
+        import json as _json
+        ingest_defaults = _json.loads(DEFAULTS_FILE.read_text(encoding="utf-8")) or {}
+        if not isinstance(ingest_defaults, dict):
+            ingest_defaults = {}
+    except Exception as exc:
+        ingest_defaults = {}
+        print(f"WARN ingest-defaults.json unreadable: {exc}")
+_dflt = lambda k: str(ingest_defaults.get(k) or "").strip()
+
+customer_id = (inputs.get("customer_id") or "").strip() or _dflt("customer_id")
+customer_name = (inputs.get("customer_name") or "").strip() or _dflt("customer_name")
 period_label = (inputs.get("period_label") or "").strip()
 previous_period_id = (inputs.get("previous_period_id") or "").strip()
 inbox_dir_raw = (inputs.get("inbox_dir") or "").strip()
@@ -55,7 +70,7 @@ if not isinstance(source_files, list):
     raise RuntimeError("source_files must be a list of paths")
 db_path_raw = (inputs.get("db_path") or "").strip()
 force = bool(inputs.get("force", False))
-rebrand = (inputs.get("rebrand") or "").strip()
+rebrand = (inputs.get("rebrand") or "").strip() or _dflt("rebrand")
 notify_session_id = (inputs.get("notify_session_id") or "").strip()
 
 WORKSPACE.mkdir(parents=True, exist_ok=True)
@@ -188,12 +203,37 @@ else:
     db_path = DEFAULT_DB
 db_path = db_path.resolve()
 
+# Customer identity: explicit inputs win; otherwise inherit from the previous period (or the most recent one)
+# already in the DB, so the Reports-page form and chat runs do not fall back to placeholder names.
+customer_inherited_from = ""
+if (not customer_id or not customer_name) and db_path.is_file():
+    try:
+        import sqlite3
+        _con = sqlite3.connect(str(db_path))
+        try:
+            _row = None
+            if previous_period_id:
+                _row = _con.execute("SELECT customer_id, customer_name, period_id FROM periods WHERE period_id=?", (previous_period_id,)).fetchone()
+            if not _row:
+                _row = _con.execute("SELECT customer_id, customer_name, period_id FROM periods WHERE period_id<>? ORDER BY report_date DESC, period_id DESC LIMIT 1", (period_id,)).fetchone()
+            if _row:
+                customer_id = customer_id or (_row[0] or "")
+                customer_name = customer_name or (_row[1] or "")
+                customer_inherited_from = _row[2]
+        finally:
+            _con.close()
+    except Exception:
+        pass
+customer_id = customer_id or "customer"
+customer_name = customer_name or "Customer Ltd"
+
 params = {
     "period_id": period_id,
     "report_no": report_no,
     "report_date": report_date,
     "customer_id": customer_id,
     "customer_name": customer_name,
+    "customer_inherited_from": customer_inherited_from,
     "period_label": period_label,
     "previous_period_id": previous_period_id,
     "inbox_dir": str(inbox_dir),

@@ -8,7 +8,7 @@ export interface Period {
 }
 export interface Summary {
   period: Period | null; periods: Period[]; latest: string | null; is_admin: boolean; user: string;
-  previous_period?: Period | null; previous_summary?: any; summary: any; aggregates: Record<string, any>;
+  previous_period?: Period | null; previous_summary?: any; kpi_periods?: any[]; summary: any; aggregates: Record<string, any>;
   exposure_index?: any; narrative?: any; coverage?: any[]; diff?: any;
 }
 export interface RowsResult<T = any> { rows: T[]; total: number; page: number; size: number; period_id: string | null; error?: string }
@@ -19,7 +19,11 @@ async function get<T = any>(path: string, params?: Record<string, any>): Promise
   const p: Record<string, any> = { ...(params || {}) };
   if (p.period === undefined) { const cp = currentPeriod(); if (cp) p.period = cp; }
   Object.keys(p).forEach((k) => { if (p[k] === undefined || p[k] === null || p[k] === '') delete p[k]; });
-  const r = await api.page.get(path, { params: p });
+  // Serialise ourselves: the host axios writes arrays as `f.key[]=a&f.key[]=b`, which the page API rejects.
+  // Multi-value filters must travel as repeated keys (`f.key=a&f.key=b`).
+  const qs = new URLSearchParams();
+  Object.entries(p).forEach(([k, v]) => { (Array.isArray(v) ? v : [v]).forEach((x) => qs.append(k, String(x))); });
+  const r = await api.page.get(`${path}?${qs.toString()}`);
   return r.data as T;
 }
 
@@ -27,7 +31,17 @@ export const getSummary = (period?: string) => get<Summary>('/summary', { period
 export const getRows = (module: string, params: Record<string, any>) => get<RowsResult>('/rows', { module, ...params });
 export const getEntity = (module: string, id: string) => get<{ record: any }>('/entity', { module, id });
 export const getFindingsStats = () => get<{ by_status: Record<string, number>; total: number; open: number }>('/findings/stats');
-export const getFindingsCsv = () => get<{ filename: string; csv: string; rows: number }>('/findings/export');
+/** Whole-period CSV, assembled from offset/limit slices (the page API caps one response at 2 MB). */
+export async function getFindingsCsv(): Promise<{ filename: string; csv: string; rows: number }> {
+  let offset: number | null = 0; let csv = ''; let rows = 0; let filename = 'easm-findings.csv';
+  while (offset !== null) {
+    const part: { filename: string; csv: string; rows: number; next: number | null } = await get('/findings/export', { offset, limit: 5000 });
+    csv += part.csv; rows += part.rows; filename = part.filename || filename;
+    offset = part.next ?? null;
+    if (part.rows === 0) break;
+  }
+  return { filename, csv, rows };
+}
 export const getReport = () => get<any>('/report');
 
 /** Access-contract operation on another page's contract (pageId is the page the contract is registered to). */

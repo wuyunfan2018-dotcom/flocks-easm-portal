@@ -134,7 +134,7 @@ class SqliteOverlayStore:
                 raise ContractRuntimeError("invalid_request", user_message=f"{field} is too long (max {limit} characters).", request_id=plan.context.request_id)
         username, role = _current_user()
         now = _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        with sqlite3.connect(DB_PATH) as db:
+        with sqlite3.connect(DB_PATH, timeout=10) as db:
             db.row_factory = sqlite3.Row
             rows = db.execute(
                 "SELECT f.period_id, p.status, p.report_date FROM findings f JOIN periods p ON p.period_id = f.period_id WHERE f.entity_id=? ORDER BY p.report_date DESC",

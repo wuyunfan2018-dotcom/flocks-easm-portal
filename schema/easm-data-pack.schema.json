@@ -1132,6 +1132,103 @@
                 }
               }
             },
+            "exposed_files": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "total_rows": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "current": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "new": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "by_lifecycle": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "new": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "active": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "updated": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "closed": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "inactive": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "hosts": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "by_host": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "by_type": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                },
+                "by_severity": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "additionalProperties": {
+                    "type": "integer"
+                  }
+                }
+              }
+            },
             "code": {
               "type": [
                 "object",
@@ -1482,6 +1579,12 @@
               ]
             },
             "files_open": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "exposed_files_current": {
               "type": [
                 "integer",
                 "null"
@@ -3049,7 +3152,90 @@
             "array",
             "null"
           ],
-          "items": {}
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "risk_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "threat_level": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "host": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "verified": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "remediation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "severity": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lifecycle": {
+                "type": "string"
+              },
+              "lifecycle_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "alt_titles": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "lifecycle"
+            ]
+          }
         }
       }
     },
@@ -3357,6 +3543,97 @@
               "id",
               "lifecycle"
             ]
+          }
+        },
+        "exposed_files": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "file_name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "host": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "file_type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "threat_level": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "remediation": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "analyst_note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "severity": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lifecycle": {
+                "type": "string"
+              },
+              "lifecycle_label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "alt_titles": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "id",
+              "lifecycle"
+            ],
+            "description": "Documents reachable without authentication on the organisation's own websites (Risk sheet, Risk Type = File; report section 'Unauthenticated File Exposure on the Internet'). Added in generator 0.2.0."
           }
         },
         "code": {

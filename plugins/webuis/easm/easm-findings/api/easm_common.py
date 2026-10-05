@@ -36,12 +36,13 @@ def easm_db_path() -> Path:
 
 DB = easm_db_path()
 PAGE_SIZE_MAX = 100
+CSV_CHUNK = 5000  # rows per /findings/export slice (~0.7 MB), under the 2 MB page-API response cap
 SECRET_FIELDS = ("password_enc", "password_fp")
 MODULES = {
     "domains", "ips", "websites", "services", "components", "certificates", "http_configs",
     "mobile_apps", "wechat_accounts", "wechat_mini_programs",
     "login_portals", "risky_services", "certificate_risks", "malicious_ip_tags", "vulnerabilities",
-    "dark_web", "files", "code", "credentials", "emails", "findings",
+    "dark_web", "files", "exposed_files", "code", "credentials", "emails", "findings",
 }
 FIELD_RE = re.compile(r"^_?[A-Za-z][A-Za-z0-9_]*$")
 FINDING_MODULE = {"certificate_risks": "certificates"}
@@ -56,7 +57,7 @@ EMPTY_SUMMARY = {"period": None, "periods": [], "latest": None, "summary": None,
 
 
 def conn():
-    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True, timeout=10)
     c.row_factory = sqlite3.Row
     return c
 
@@ -116,6 +117,34 @@ def kpi_backfill(summary: dict) -> dict | None:
     return prev if isinstance(prev, dict) else None
 
 
+def _dig(d, *keys):
+    for k in keys:
+        if not isinstance(d, dict):
+            return None
+        d = d.get(k)
+    return d
+
+
+def derive_kpis(summ: dict) -> dict:
+    """Same KPI keys as a previous-summary.json backfill, computed from a period snapshot stored in the DB
+    (so the Overview tiles get period-over-period deltas without a hand-written backfill file)."""
+    a, r, l = summ.get("assets") or {}, summ.get("risks") or {}, summ.get("leaks") or {}
+    return {
+        "domains_current": _dig(a, "domains", "current"), "ips_total": _dig(a, "ips", "total_rows"), "websites": _dig(a, "websites", "total_rows"),
+        "ips_with_open_services": _dig(a, "services", "ips_with_current_services"), "wechat_official_accounts": _dig(a, "wechat_official_accounts", "total_rows"),
+        "wechat_mini_programs": _dig(a, "wechat_mini_programs", "total_rows"), "mobile_apps": _dig(a, "mobile_apps", "current"),
+        "login_portals": _dig(r, "login_portals", "current"), "risky_services": _dig(r, "risky_services", "current"), "certificate_risks": _dig(r, "certificates", "current"),
+        "malicious_ip_tags": _dig(r, "malicious_ip_tags", "current"), "vulnerabilities": _dig(r, "vulnerabilities", "current"),
+        "dark_web_open": _dig(l, "dark_web", "open"), "files_open": _dig(l, "files", "open"), "exposed_files_current": _dig(l, "exposed_files", "current"),
+        "code_current": _dig(l, "code", "current"), "emails": _dig(l, "emails", "total"),
+        "credentials": _dig(l, "credentials", "total"), "credentials_verified": _dig(l, "credentials", "verified_login"),
+    }
+
+
+def table_exists(c, name: str) -> bool:
+    return c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)).fetchone() is not None
+
+
 def load_summary(c, period_id: str) -> dict:
     row = c.execute("SELECT summary_json, exposure_json, narrative_json, coverage_json, diff_json FROM summary WHERE period_id=?", (period_id,)).fetchone()
     if not row:
@@ -141,10 +170,29 @@ def summary_payload(c, request, ctx) -> dict:
     prev_row = None
     if period.get("previous_period_id"):
         prev_row = next((p for p in periods if p["period_id"] == period["previous_period_id"]), None)
+    if prev is None and prev_row:
+        prev_summ = load_summary(c, prev_row["period_id"])["summary"]
+        if isinstance(prev_summ, dict):
+            prev = {"period_id": prev_row["period_id"], "report_no": prev_row.get("report_no"), "report_date": prev_row.get("report_date"),
+                    "source": f"KPIs derived from the {prev_row.get('label') or prev_row['period_id']} snapshot", "kpis": derive_kpis(prev_summ)}
     agg = summ.pop("aggregates", None) if isinstance(summ, dict) else None
+    # KPI-only backfill periods (previous-summary.json at ingest) that have no snapshot of their own: list all of
+    # them, with the period whose payload carries the numbers, so the switcher can reach them from any period.
+    kpi_periods = []
+    db_ids = {p["period_id"] for p in periods}
+    for p in periods:
+        row = c.execute("SELECT json_extract(summary_json, '$.previous_summary') FROM summary WHERE period_id=?", (p["period_id"],)).fetchone()
+        try:
+            ps = json.loads(row[0]) if row and row[0] else None
+        except Exception:
+            ps = None
+        if isinstance(ps, dict) and ps.get("period_id") and ps["period_id"] not in db_ids and isinstance(ps.get("kpis"), dict):
+            if not any(k["period_id"] == ps["period_id"] for k in kpi_periods):
+                kpi_periods.append({**ps, "carrier": p["period_id"]})
     return {
         "period": period,
         "periods": periods,
+        "kpi_periods": kpi_periods,
         "latest": (latest_published or period)["period_id"],
         "is_admin": is_admin(ctx),
         "user": user_name(ctx),
@@ -174,6 +222,8 @@ def _filters(request) -> list[tuple[str, str]]:
     except Exception:
         items = []
     for k, v in items:
+        if k.endswith("[]"):  # axios-style array keys (f.key[]=a&f.key[]=b)
+            k = k[:-2]
         if k.startswith("f.") and FIELD_RE.match(k[2:]) and v != "":
             out.append((k[2:], v))
     return out
@@ -184,8 +234,8 @@ def rows_payload(c, request, ctx) -> dict:
     if module not in MODULES:
         return {"error": "unknown module", "rows": [], "total": 0}
     period = resolve_period(c, request, ctx)
-    if not period:
-        return {"rows": [], "total": 0, "page": 1, "size": 25, "period_id": None}
+    if not period or not table_exists(c, module):  # a module added after this DB was created has no table until the next ingest
+        return {"rows": [], "total": 0, "page": 1, "size": 25, "period_id": period["period_id"] if period else None}
     try:
         page = max(1, int(qp(request, "page", "1")))
         size = min(PAGE_SIZE_MAX, max(1, int(qp(request, "size", "25"))))
@@ -262,6 +312,8 @@ def entity_payload(c, request, ctx) -> dict:
     period = resolve_period(c, request, ctx)
     if not period:
         return {"error": "no period"}
+    if not table_exists(c, module):
+        return {"record": None}
     row = c.execute(f"SELECT record_json FROM {module} WHERE period_id=? AND entity_id=?", (period["period_id"], entity_id)).fetchone()
     if not row:
         return {"record": None}
@@ -289,19 +341,30 @@ def findings_csv(c, request, ctx) -> dict:
     period = resolve_period(c, request, ctx)
     if not period:
         return {"error": "no period"}
+    # Chunked: a period can hold 25k+ findings and the page API caps a response at 2 MB, so the client
+    # fetches offset/limit slices and concatenates them (the header travels with the first slice only).
+    try:
+        offset = max(0, int(qp(request, "offset", "0")))
+        limit = min(CSV_CHUNK, max(1, int(qp(request, "limit", str(CSV_CHUNK)))))
+    except ValueError:
+        offset, limit = 0, CSV_CHUNK
+    total = c.execute("SELECT COUNT(*) FROM findings WHERE period_id=?", (period["period_id"],)).fetchone()[0]
     rows = c.execute(
-        "SELECT t.record_json, o.customer_status, o.owner, o.customer_note FROM findings t LEFT JOIN findings_overlay o ON o.entity_id = t.entity_id WHERE t.period_id=? ORDER BY t.rowid",
-        (period["period_id"],),
+        "SELECT t.record_json, o.customer_status, o.owner, o.customer_note FROM findings t LEFT JOIN findings_overlay o ON o.entity_id = t.entity_id WHERE t.period_id=? ORDER BY t.rowid LIMIT ? OFFSET ?",
+        (period["period_id"], limit, offset),
     ).fetchall()
     buf = io.StringIO()
     w = csv.writer(buf)
-    w.writerow(["finding_id", "module", "severity", "title", "lifecycle", "first_seen_period", "analyst_status", "customer_status", "owner", "customer_note"])
+    if offset == 0:
+        w.writerow(["finding_id", "module", "severity", "title", "lifecycle", "first_seen_period", "analyst_status", "customer_status", "owner", "customer_note"])
     for r in rows:
         rec = json.loads(r["record_json"])
         w.writerow([rec.get("id"), rec.get("module"), rec.get("severity"), rec.get("title"), rec.get("lifecycle"), rec.get("first_seen_period") or "",
                     rec.get("analyst_status"), r["customer_status"] or rec.get("customer_status") or "open",
                     r["owner"] if r["owner"] is not None else (rec.get("owner") or ""), r["customer_note"] if r["customer_note"] is not None else (rec.get("customer_note") or "")])
-    return {"filename": f"easm-findings-{period['period_id']}.csv", "csv": buf.getvalue(), "rows": len(rows)}
+    nxt = offset + len(rows)
+    return {"filename": f"easm-findings-{period['period_id']}.csv", "csv": buf.getvalue(), "rows": len(rows), "total": total,
+            "offset": offset, "next": nxt if nxt < total else None}
 
 
 def report_payload(c, request, ctx) -> dict:

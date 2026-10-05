@@ -138,9 +138,10 @@ locate_inputs -> convert -> validate -> load_db -> diff -> notify
 | `risky_services` | `risks.risky_services` | 本期可能为空列表 |
 | `certificate_risks` | `risks.certificates` | 注意表名与数据包键名不同 |
 | `malicious_ip_tags` | `risks.malicious_ip_tags` | 可能为空 |
-| `vulnerabilities` | `risks.vulnerabilities` | 可能为空 |
+| `vulnerabilities` | `risks.vulnerabilities` | Risk 表中 Risk Type 不是 File 的行；可能为空 |
 | `dark_web` | `leaks.dark_web` | |
 | `files` | `leaks.files` | |
+| `exposed_files` | `leaks.exposed_files` | Risk 表中 Risk Type = File 的行（官网未鉴权可访问的文件，报告 3.x「Unauthenticated File Exposure」）；0.9.2 新增 |
 | `code` | `leaks.code` | |
 | `credentials` | `leaks.credentials` | 含 `password_enc`（密文）、`password_fp`、`password_masked`，原样入库 |
 | `emails` | `leaks.emails` | |

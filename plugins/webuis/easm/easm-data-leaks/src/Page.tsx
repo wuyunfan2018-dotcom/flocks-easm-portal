@@ -9,6 +9,7 @@ import { ANALYST_STATUS_LABEL, cap, fmt, getQuery, human, objToItems, setQuery }
 const TABS = [
   { id: 'dark-web', label: 'Dark web', n: (S: any) => S.leaks?.dark_web?.open },
   { id: 'files', label: 'Files', n: (S: any) => S.leaks?.files?.open },
+  { id: 'exposed-files', label: 'Exposed files', n: (S: any) => S.leaks?.exposed_files?.current },
   { id: 'code', label: 'Code', n: (S: any) => S.leaks?.code?.current },
   { id: 'credentials', label: 'Credentials', n: (S: any) => S.leaks?.credentials?.total },
   { id: 'emails', label: 'Emails', n: (S: any) => S.leaks?.emails?.total },
@@ -89,6 +90,41 @@ function Body({ portal, tab }: { portal: Portal; tab: string }) {
                 <Recommendations narrative={N} mod="files" />
               </>
             ) })} />
+        </Card>
+      </>
+    );
+  }
+  if (tab === 'exposed-files') {
+    const s = S.leaks?.exposed_files || {};
+    const typeLabel = (v: string) => v === 'pdf' ? 'PDF document' : v === 'aspx' ? 'ASPX page' : v === 'other' || v === '-' ? 'Other' : v.toUpperCase();
+    return (
+      <>
+        <KpiStrip items={[['Files reachable without login', s.current], ['New this period', s.new], ['Websites affected', s.hosts], ['Removed since last period', s.by_lifecycle?.closed]]} />
+        <ModuleNarrative narrative={N} mod="exposed_files" />
+        <Note className="mb-16">These documents sit on the organisation's own websites and open without any authentication; the analysts verified each URL. Unlike the <strong>Files</strong> tab (third-party cloud storage), remediation is on the organisation's side: restrict the path, force login or use expiring download links.</Note>
+        <div className="grid cols-2 mb-16">
+          <Card><div className="chart-title">Exposed files by website</div><BarList items={objToItems(s.by_host).sort((a, b) => b.value - a.value)} labelW={220} /></Card>
+          <Card><div className="chart-title">By file type</div><BarList items={objToItems(s.by_type).map((i) => ({ ...i, label: typeLabel(i.label) })).sort((a, b) => b.value - a.value)} labelW={120} /></Card>
+        </div>
+        <Card>
+            <DataTable module="exposed_files" extraParams={extra} searchPlaceholder="Search file name, URL or description"
+              facets={[custFacet('Website', A.exposed_files?.host, 'host'), custFacet('File type', A.exposed_files?._ftype, '_ftype', typeLabel), custFacet('Severity', A.exposed_files?.severity, 'severity', cap), custFacet('Lifecycle', A.exposed_files?.lifecycle, 'lifecycle', cap)]}
+              columns={[
+                { key: 'file_name', label: 'File', width: '220px', cls: 'wrap', render: (r) => <>{r.file_name}{r.analyst_note ? <span className="cell-sub">{r.analyst_note}</span> : null}</> },
+                { key: 'host', label: 'Website', width: '180px', render: (r) => <Mono v={r.host} /> },
+                { key: '_ftype', label: 'Type', width: '90px', render: (r) => typeLabel(r._ftype || 'other') },
+                { key: 'severity', label: 'Severity', width: '90px', render: (r) => <SevBadge sev={r.severity} />, sortKey: '_sev' },
+                { key: 'lifecycle', label: 'Lifecycle', width: '100px', render: (r) => <LifecyclePill row={r} /> },
+                { key: 'customer_status', label: 'Customer status', width: '120px', render: (r) => <CustStatus s={r.customer_status} />, sortable: false },
+              ]}
+              onRow={(r) => ui.openDrawer({ kicker: 'Unauthenticated file exposure', title: r.file_name || r.url, sub: <><SevBadge sev={r.severity} /> <LifecyclePill row={r} /></>, body: (
+                <>
+                  <KV pairs={[['URL', <Mono v={r.url} />], ['Website', <Mono v={r.host} />], ['File type', typeLabel(r._ftype || 'other')], ['Threat level (analyst)', r.threat_level], ['Analyst finding', r.analyst_note], ['Customer status', <CustStatus s={r.customer_status} />]]} />
+                  {r.description ? <><h4>What the analysts observed</h4><p className="small secondary pre">{r.description}</p></> : null}
+                  {r.remediation ? <><h4>Repair suggestion</h4><p className="small secondary pre">{r.remediation}</p></> : null}
+                  <Recommendations narrative={N} mod="exposed_files" />
+                </>
+              ) })} />
         </Card>
       </>
     );

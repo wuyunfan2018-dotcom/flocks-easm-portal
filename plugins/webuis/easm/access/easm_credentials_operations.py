@@ -122,7 +122,7 @@ class _ResponsePipeline:
         period_id = str(rec.get("period_id") or "")
         entity_id = str(rec.get("id") or "")
         # members may only reveal from published periods
-        with sqlite3.connect(DB_PATH) as db:
+        with sqlite3.connect(DB_PATH, timeout=10) as db:
             row = db.execute("SELECT status FROM periods WHERE period_id=?", (period_id,)).fetchone()
         status = row[0] if row else None
         if status != "published" and role != "admin":
@@ -138,7 +138,7 @@ class _ResponsePipeline:
         except Exception:
             raise ContractRuntimeError("reveal_unavailable", status_code=503, user_message="Password cannot be decrypted with the key configured on this instance.", request_id=context.request_id)
         now = _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        with sqlite3.connect(DB_PATH) as db:
+        with sqlite3.connect(DB_PATH, timeout=10) as db:
             cur = db.execute(
                 "INSERT INTO audit_reveal(period_id, entity_id, user, at, ip, note) VALUES (?, ?, ?, ?, NULL, ?)",
                 (period_id, entity_id, username or context.principal_ref, now, f"reveal via portal ({context.request_id})"),

@@ -18,7 +18,7 @@ export const SEV_ORDER: Record<string, number> = { critical: 0, high: 0, medium:
 export const MODULE_LABEL: Record<string, string> = {
   login_portals: 'Exposed login portals', risky_services: 'Risky ports & services', certificates: 'Certificate risks',
   malicious_ip_tags: 'Malicious IP tags', vulnerabilities: 'Vulnerabilities', http_misconfigurations: 'HTTP security headers',
-  dark_web: 'Dark web', files: 'File leaks', code: 'Code leaks', credentials: 'Leaked credentials', emails: 'Corporate emails',
+  dark_web: 'Dark web', files: 'File leaks', exposed_files: 'Unauthenticated file exposure', code: 'Code leaks', credentials: 'Leaked credentials', emails: 'Corporate emails',
   asset_discovery: 'Asset discovery', mobile_apps: 'Mobile apps', social_accounts: 'WeChat accounts',
 };
 
@@ -34,7 +34,7 @@ export const PAGE = {
 export const MODULE_ROUTE: Record<string, string> = {
   login_portals: `${PAGE.risks}?tab=login-portals`, risky_services: `${PAGE.risks}?tab=risky-services`, certificates: `${PAGE.risks}?tab=certificates`,
   malicious_ip_tags: `${PAGE.risks}?tab=malicious-ip`, vulnerabilities: `${PAGE.risks}?tab=vulnerabilities`, http_misconfigurations: `${PAGE.risks}?tab=http-headers`,
-  dark_web: `${PAGE.leaks}?tab=dark-web`, files: `${PAGE.leaks}?tab=files`, code: `${PAGE.leaks}?tab=code`, credentials: `${PAGE.leaks}?tab=credentials`, emails: `${PAGE.leaks}?tab=emails`,
+  dark_web: `${PAGE.leaks}?tab=dark-web`, files: `${PAGE.leaks}?tab=files`, exposed_files: `${PAGE.leaks}?tab=exposed-files`, code: `${PAGE.leaks}?tab=code`, credentials: `${PAGE.leaks}?tab=credentials`, emails: `${PAGE.leaks}?tab=emails`,
   asset_discovery: `${PAGE.surface}?tab=domains`, mobile_apps: `${PAGE.surface}?tab=mobile-apps`, social_accounts: `${PAGE.surface}?tab=wechat`,
 };
 
@@ -42,7 +42,7 @@ export const CUSTOMER_STATUSES: Array<[string, string]> = [
   ['open', 'Open'], ['acknowledged', 'Acknowledged'], ['in_progress', 'In progress'],
   ['resolved', 'Resolved'], ['false_positive', 'False positive'], ['risk_accepted', 'Risk accepted'],
 ];
-export const ANALYST_STATUS_LABEL: Record<string, string> = { open: 'Open', verified: 'Verified', taken_down: 'Taken down', invalid: 'Invalid', expired: 'Expired', to_confirm: 'To confirm', confirmed: 'Confirmed' };
+export const ANALYST_STATUS_LABEL: Record<string, string> = { open: 'Open', verified: 'Verified', taken_down: 'Taken down', invalid: 'Invalid', expired: 'Expired', to_confirm: 'To confirm', confirmed: 'Confirmed', removed: 'Removed', fixed: 'Fixed' };
 
 export const BLUE = '#2D73DC', ORANGE = '#F99819', RED = '#DB0000', GREEN = '#58AF1F', INK = '#3D3A39';
 export const BLUE_RAMP = ['#8FB3EC', '#5F8FE3', '#2D73DC', '#1F5CBB'];

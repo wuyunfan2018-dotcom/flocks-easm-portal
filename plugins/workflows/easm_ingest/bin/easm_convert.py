@@ -38,11 +38,12 @@ import os
 import re
 import sys
 from collections import Counter, OrderedDict, defaultdict
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
 SCHEMA_VERSION = "1.0"
-GENERATOR_VERSION = "0.1.1"
+GENERATOR_VERSION = "0.2.0"
 
 # ----------------------------------------------------------------------------
 # Lifecycle colour convention (RGB of column-A fill)
@@ -62,6 +63,7 @@ CLOSED_LABEL = {
     "domains": "inactive", "ips": "unreachable", "services": "closed", "login_portals": "closed",
     "mobile_apps": "removed", "dark_web": "invalid", "files": "taken_down", "code": "expired",
     "websites": "closed", "components": "closed", "emails": "closed", "credentials": "closed",
+    "exposed_files": "removed", "vulnerabilities": "fixed",
 }
 
 MODULE_LABELS = OrderedDict([
@@ -76,6 +78,7 @@ MODULE_LABELS = OrderedDict([
     ("vulnerabilities", "Vulnerabilities on internet-facing assets"),
     ("dark_web", "Dark web data leaks"),
     ("files", "Sensitive file leaks (cloud storage)"),
+    ("exposed_files", "Unauthenticated file exposure (own websites)"),
     ("code", "Source code leaks (GitHub/GitLab)"),
     ("credentials", "Leaked login credentials"),
     ("emails", "Exposed corporate email addresses"),
@@ -212,6 +215,9 @@ def url_host(u: Optional[str]) -> Optional[str]:
         return None
     m = re.match(r"^(?:[a-z]+://)?([^/:?#]+)", u.strip(), re.I)
     return m.group(1).lower() if m else None
+
+
+EXPOSED_FILE_TYPE = re.compile(r"^\s*(file|files|document|文件)(?![a-z])", re.I)  # Risk-sheet 'Risk Type' values that mean an exposed document
 
 
 def url_scheme(u: Optional[str]) -> Optional[str]:
@@ -757,20 +763,64 @@ class Inventory:
             out.append(rec)
         return out
 
-    def vulnerabilities(self) -> list[dict]:
+    def risk_rows(self) -> list[dict]:
+        """Generic reader for the analysts' 'Risk' sheet. Two layouts are known:
+             legacy   : Vulnerability | Describe | Threat level | URL | Verify | Repair
+             2026-09+ : Risk Type | Associated Information | URL | Threat level | Describe | Repair Suggestions
+        Rows come back with a normalised `risk_type`; vulnerabilities()/exposed_files() split them by type."""
         sh = find_sheet(self.sheets, "Risk", "Vulnerab")
         if not sh:
             return []
-        c_v, c_d, c_lvl, c_url, c_ver, c_fix = sh.col("Vulnerability"), sh.col("Describe"), sh.col("Threat level"), sh.col("URL"), sh.col("Verify"), sh.col("Repair")
+        c_type, c_info, c_vuln = sh.col("Risk Type"), sh.col("Associated Information"), sh.col("Vulnerability")
+        c_d, c_lvl, c_url, c_ver, c_fix = sh.col("Describe"), sh.col("Threat level"), sh.col("URL"), sh.col("Verify"), sh.col("Repair")
+        if c_type is None and c_vuln is None:
+            self.warnings.append(f"sheet {sh.name!r}: neither 'Risk Type' nor 'Vulnerability' column found; risk rows skipped")
+            return []
         out = []
         for i, r in enumerate(sh.rows):
-            v = clean(r[c_v]) if c_v is not None else None
-            if not v:
+            g = lambda c: clean(r[c]) if c is not None and c < len(r) else None
+            name, url = g(c_info) or g(c_vuln), g(c_url)
+            if not name and not url:
                 continue
-            out.append({"id": stable_id("vuln", v, clean(r[c_url]) if c_url is not None else None), "name": v,
-                        "description": clean(r[c_d]) if c_d is not None else None, "threat_level": clean(r[c_lvl]) if c_lvl is not None else None,
-                        "url": clean(r[c_url]) if c_url is not None else None, "verified": clean(r[c_ver]) if c_ver is not None else None,
-                        "remediation": clean(r[c_fix]) if c_fix is not None else None, "lifecycle": sh.lifecycles[i]})
+            rtype = (g(c_type) or ("vulnerability" if c_vuln is not None else "")).lower() or "unknown"
+            out.append({"risk_type": rtype, "name": name, "url": url, "host": url_host(url) if url else None,
+                        "threat_level": g(c_lvl), "description": g(c_d), "verified": g(c_ver), "remediation": g(c_fix),
+                        "_row": i})
+        return out
+
+    def _risk_rows(self) -> list[dict]:
+        if not hasattr(self, "_risk_cache"):
+            self._risk_cache = self.risk_rows()
+        return self._risk_cache
+
+    def vulnerabilities(self) -> list[dict]:
+        """Every Risk-sheet row that is not a file exposure: classic vulnerabilities, misconfigurations, ..."""
+        sh = find_sheet(self.sheets, "Risk", "Vulnerab")
+        out = []
+        for r in self._risk_rows():
+            if EXPOSED_FILE_TYPE.match(r["risk_type"]):
+                continue
+            life, label = self._life(sh, r["_row"], "vulnerabilities")
+            out.append({"id": stable_id("vuln", r["name"], r["url"]), "name": r["name"] or r["url"], "risk_type": r["risk_type"],
+                        "description": r["description"], "threat_level": r["threat_level"], "url": r["url"], "host": r["host"],
+                        "verified": r["verified"], "remediation": r["remediation"], "lifecycle": life, "lifecycle_label": label})
+        return out
+
+    def exposed_files(self) -> list[dict]:
+        """Risk Type 'File': documents reachable without authentication on the organisation's own websites
+        (report section 'Unauthenticated File Exposure on the Internet')."""
+        sh = find_sheet(self.sheets, "Risk", "Vulnerab")
+        out = []
+        for r in self._risk_rows():
+            if not EXPOSED_FILE_TYPE.match(r["risk_type"]):
+                continue
+            life, label = self._life(sh, r["_row"], "exposed_files")
+            path = urlsplit(r["url"]).path if r["url"] else ""
+            leaf = path.rsplit("/", 1)[-1]
+            ext = leaf.rsplit(".", 1)[-1].lower() if "." in leaf else None
+            out.append({"id": stable_id("xfile", r["url"] or r["name"]), "file_name": r["name"] or leaf or None, "url": r["url"], "host": r["host"],
+                        "file_type": ext, "threat_level": r["threat_level"], "description": r["description"], "remediation": r["remediation"],
+                        "analyst_note": None, "lifecycle": life, "lifecycle_label": label})
         return out
 
 
@@ -785,6 +835,7 @@ MODULE_KEYWORDS = [
     ("malicious_ip_tags", r"malicious(ly)?\s*(ip|flag)|ip\s*tags?"),
     ("vulnerabilities", r"vulnerab"),
     ("dark_web", r"dark\s*web"),
+    ("exposed_files", r"unauthenticated\s*files?|files?\s*exposure|exposed\s*files?"),
     ("files", r"file\s*leak|cloud\s*storage|openly\s*shared"),
     ("code", r"code\s*leak|github|gitlab|code\s*hosting"),
     ("credentials", r"credential"),
@@ -793,6 +844,9 @@ MODULE_KEYWORDS = [
     ("social_accounts", r"wechat|mini\s*program|official\s*account"),
     ("asset_discovery", r"subdomain|ip assets|websites|asset inventory"),
 ]
+
+
+BOILERPLATE_RE = re.compile(r"^\s*(copyright\s*©|©\s*\d{4}|all rights reserved|[A-Z][\w.&-]*( [A-Z][\w.&-]*)? is an? (innovative|leading|trusted) |about (us|the (vendor|company)))", re.I)
 
 
 def module_for(text: str) -> Optional[str]:
@@ -903,8 +957,10 @@ class DocxReport:
                 t = b["text"]
                 if re.match(r"^risk\s*[:：]", t, re.I):
                     sec["risk_statement"] = re.sub(r"^risk\s*[:：]\s*", "", t, flags=re.I)
-                elif not re.search(r"the table includes only the top", t, re.I):
-                    sec["notes"].append(t)
+                else:
+                    t = re.sub(r"\s*The table includes only (the top|a sample of) \d+,?[^.]*\.", "", t, flags=re.I).strip()  # table-size boilerplate
+                    if t and t not in sec["notes"]:  # analysts sometimes paste the same paragraph twice
+                        sec["notes"].append(t)
             elif b["kind"] == "tbl":
                 sec["tables"].append(b["rows"])
         return out
@@ -922,6 +978,9 @@ class DocxReport:
                     cur = None
                 continue
             if cur and b["kind"] == "p" and b["text"]:
+                if BOILERPLATE_RE.search(b["text"]):  # company blurb / copyright closing the document, not advice
+                    cur = None
+                    continue
                 cur["items"].append(b["text"])
         return out
 
@@ -1050,7 +1109,7 @@ class ImageStore:
 
 
 # ----------------------------------------------------------------------------
-# Rules (severity + exposure index) — rules-v1, no AI involvement
+# Rules (severity + exposure index) — rules-v2, no AI involvement
 # ----------------------------------------------------------------------------
 SEVERITY_RANK = {"high": 3, "medium": 2, "low": 1, "info": 0, "none": -1}
 
@@ -1060,9 +1119,10 @@ EXPOSURE_WEIGHTS = OrderedDict([
     ("dark_web", (20, 6)),
     ("code", (10, 10)),
     ("files", (5, 5)),
+    ("exposed_files", (5, 20)),
     ("login_portals", (10, 300)),
     ("certificates", (10, 10)),
-    ("vulnerabilities", (10, 5)),
+    ("vulnerabilities", (5, 5)),
     ("risky_services", (5, 10)),
     ("malicious_ip_tags", (5, 5)),
 ])
@@ -1106,7 +1166,7 @@ def severity_vulnerability(v: dict) -> str:
     lvl = (v.get("threat_level") or "").lower()
     if lvl in ("critical", "high", "严重", "高危"):
         return "high"
-    if lvl in ("medium", "中危"):
+    if lvl in ("medium", "middle", "mid", "moderate", "中危", "中"):
         return "medium"
     return "low"
 
@@ -1124,12 +1184,13 @@ def exposure_index(module_units: dict[str, float]) -> dict:
     score = round(total, 1)
     band = "critical" if score >= 70 else "high" if score >= 50 else "medium" if score >= 30 else "low"
     grade = "E" if score >= 70 else "D" if score >= 50 else "C" if score >= 30 else "B" if score >= 15 else "A"
-    return {"method": "rules-v1", "score": score, "max_score": 100, "band": band, "grade": grade,
+    return {"method": "rules-v2", "score": score, "max_score": 100, "band": band, "grade": grade,
             "direction": "higher = more exposure", "modules": mods,
             "notes": ["Points per module saturate on a log curve at the module's threshold; weights sum to 100.",
                       "Credential units = verified accounts x3 + other accounts x1. Dark web units = open items x1 (taken-down items excluded).",
                       "Code units = high x3 + medium x1.5 + low x0.5. Login portals = current portals x1 + plain-HTTP portals x1 extra.",
-                      "Certificate units = analyst-flagged legacy-protocol endpoints x1. HTTP header findings carry no weight until field semantics are confirmed."]}
+                      "Certificate units = analyst-flagged legacy-protocol endpoints x1. Exposed-file units = current unauthenticated files x1 (saturates at 20).",
+                      "HTTP header findings carry no weight until field semantics are confirmed. rules-v2 (2026-10) added exposed files at 5 points and reduced vulnerabilities from 10 to 5."]}
 
 
 # ----------------------------------------------------------------------------
@@ -1210,7 +1271,7 @@ def build(args) -> dict:
     ])
     login_portals = inv.login_portals()
     vulnerabilities = inv.vulnerabilities()
-    leaks = OrderedDict([("dark_web", inv.dark_web()), ("files", inv.files()), ("code", inv.code()), ("credentials", inv.credentials()), ("emails", inv.emails())])
+    leaks = OrderedDict([("dark_web", inv.dark_web()), ("files", inv.files()), ("exposed_files", inv.exposed_files()), ("code", inv.code()), ("credentials", inv.credentials()), ("emails", inv.emails())])
 
     # -- entity ids must be unique per module: collapse duplicate rows before any KPI is computed --
     collapsed: "OrderedDict[str, dict]" = OrderedDict()
@@ -1293,6 +1354,24 @@ def build(args) -> dict:
                 f["screenshot"] = images.save("files", f["id"], row["_images"][0])
             if not f.get("analyst_note") and row.get("notes"):
                 f["analyst_note"] = row["notes"]
+        # unauthenticated file exposure: the report lists the top rows as File | URL | Finding
+        xf_by_url = {x["url"].rstrip("/").lower(): x for x in leaks["exposed_files"] if x.get("url")}
+        for tbl in (secs.get("exposed_files") or {}).get("tables", []):
+            if not tbl:
+                continue
+            hdr = [c["text"].lower() for c in tbl[0]]
+            ci_url = next((i for i, h in enumerate(hdr) if "url" in h), None)
+            ci_note = next((i for i, h in enumerate(hdr) if h.startswith("finding") or h.startswith("note")), None)
+            if ci_url is None:
+                continue
+            for row in tbl[1:]:
+                if ci_url >= len(row):
+                    continue
+                x = xf_by_url.get(row[ci_url]["text"].rstrip("/").lower())
+                if x is None:
+                    continue
+                if ci_note is not None and ci_note < len(row) and clean(row[ci_note]["text"]):
+                    x["analyst_note"] = clean(row[ci_note]["text"])
 
     # -- verification report ----------------------------------------------------
     if args.verification:
@@ -1364,6 +1443,8 @@ def build(args) -> dict:
         d["severity"] = severity_dark_web(d)
     for f in leaks["files"]:
         f["severity"] = severity_file(f)
+    for x in leaks["exposed_files"]:
+        x["severity"] = severity_vulnerability(x)
     for c in leaks["code"]:
         c["severity"] = severity_code(c)
     for c in leaks["credentials"]:
@@ -1374,6 +1455,7 @@ def build(args) -> dict:
     # -- summary -----------------------------------------------------------------------
     cur_portals = current(login_portals)
     dw_open = [d for d in current(leaks["dark_web"]) if not d.get("taken_down")]
+    xf_cur = current(leaks["exposed_files"])
     summary = OrderedDict([
         ("assets", OrderedDict([
             ("domains", {"total_rows": len(assets["domains"]), "current": len(current(assets["domains"])), "by_lifecycle": by_lifecycle(assets["domains"]), "root_domains": len({d["root_domain"] for d in assets["domains"] if d.get("root_domain")})}),
@@ -1406,6 +1488,9 @@ def build(args) -> dict:
                           "new": len([d for d in leaks["dark_web"] if d["lifecycle"] == "new"]), "by_forum": dict(Counter(d["forum"] or "unknown" for d in leaks["dark_web"]).most_common(8)),
                           "with_screenshot": len([d for d in leaks["dark_web"] if d.get("screenshot")])}),
             ("files", {"total_rows": len(leaks["files"]), "open": len([f for f in leaks["files"] if not f["taken_down"]]), "taken_down": len([f for f in leaks["files"] if f["taken_down"]]), "with_screenshot": len([f for f in leaks["files"] if f.get("screenshot")])}),
+            ("exposed_files", {"total_rows": len(leaks["exposed_files"]), "current": len(xf_cur), "new": len([x for x in leaks["exposed_files"] if x["lifecycle"] == "new"]), "by_lifecycle": by_lifecycle(leaks["exposed_files"]),
+                               "hosts": len({x["host"] for x in xf_cur if x.get("host")}), "by_host": dict(Counter(x["host"] or "unknown" for x in xf_cur).most_common(8)),
+                               "by_type": dict(Counter((x["file_type"] or "other") for x in xf_cur).most_common(8)), "by_severity": dict(Counter(x["severity"] for x in xf_cur))}),
             ("code", {"total_rows": len(leaks["code"]), "current": len(current(leaks["code"])), "by_lifecycle": by_lifecycle(leaks["code"]), "by_severity": dict(Counter(c["severity"] for c in current(leaks["code"]))),
                       "sensitive_found": len([c for c in leaks["code"] if c["sensitive_data_found"]]), "with_screenshot": len([c for c in leaks["code"] if c.get("screenshot")])}),
             ("credentials", {"total": len(leaks["credentials"]), "verified_login": len([c for c in leaks["credentials"] if c["verified_login"]]), "by_host": dict(Counter(c["host"] or "unknown" for c in leaks["credentials"]).most_common(10)),
@@ -1423,6 +1508,7 @@ def build(args) -> dict:
         "dark_web": len(dw_open),
         "code": sum(3 if c["severity"] == "high" else 1.5 if c["severity"] == "medium" else 0.5 for c in current(leaks["code"])),
         "files": summary["leaks"]["files"]["open"],
+        "exposed_files": len(xf_cur),
         "login_portals": len(cur_portals) + summary["risks"]["login_portals"]["plain_http"],
         "certificates": len(cert_risks),
         "vulnerabilities": len(vulnerabilities),
@@ -1446,6 +1532,7 @@ def build(args) -> dict:
         cov("vulnerabilities", "findings" if vulnerabilities else "monitored_none", len(vulnerabilities), None if vulnerabilities else "No exploitable vulnerabilities were identified this period."),
         cov("dark_web", "findings", len(dw_open)),
         cov("files", "findings", summary["leaks"]["files"]["open"]),
+        cov("exposed_files", "findings" if xf_cur else "monitored_none", len(xf_cur), None if xf_cur else "No files reachable without authentication were identified on the organisation's websites this period."),
         cov("code", "findings", summary["leaks"]["code"]["current"]),
         cov("credentials", "findings", summary["leaks"]["credentials"]["total"]),
         cov("emails", "findings", summary["leaks"]["emails"]["total"]),
@@ -1474,6 +1561,8 @@ def build(args) -> dict:
         add_finding("dark_web", d, f"Dark web listing: {d['title_clean'][:80]}", {"type": "dark_web", "id": d["id"]}, d["severity"], st)
     for f in leaks["files"]:
         add_finding("files", f, f"Sensitive file shared publicly: {f.get('file_name') or f.get('url')}", {"type": "file", "id": f["id"]}, f["severity"], "taken_down" if f["taken_down"] else "open")
+    for x in leaks["exposed_files"]:
+        add_finding("exposed_files", x, f"Unauthenticated file exposure: {x.get('file_name') or x.get('url')}", {"type": "exposed_file", "id": x["id"]}, x["severity"], "removed" if x["lifecycle"] == "closed" else "open")
     for c in leaks["code"]:
         add_finding("code", c, f"Code repository referencing the organisation: {c['repository']}", {"type": "code", "id": c["id"]}, c["severity"], "expired" if c["lifecycle"] == "closed" else "open")
     for c in leaks["credentials"]:
@@ -1498,6 +1587,7 @@ def build(args) -> dict:
     chk("certificate risks", len(cert_risks), section_counts.get("certificates"))
     chk("dark web items (open)", len(dw_open), section_counts.get("dark_web"))
     chk("file leaks (open)", summary["leaks"]["files"]["open"], section_counts.get("files"))
+    chk("unauthenticated file exposure (current)", len(xf_cur), section_counts.get("exposed_files"), collapsed.get("exposed_files", {}).get("current", 0))
     chk("code leaks (current)", summary["leaks"]["code"]["current"], section_counts.get("code"))
     chk("credentials (non-empty rows)", summary["leaks"]["credentials"]["total"], section_counts.get("credentials"), collapsed.get("credentials", {}).get("rows", 0))
     chk("wechat official accounts", summary["assets"]["wechat_official_accounts"]["total_rows"], section_counts.get("social_accounts"))
@@ -1570,6 +1660,7 @@ def write_report(pack: dict, out_dir: Path) -> None:
              f"- Certificate risks: {s['risks']['certificates']}",
              f"- Dark web: {s['leaks']['dark_web']}",
              f"- Files: {s['leaks']['files']}",
+             f"- Exposed files (unauthenticated): {s['leaks']['exposed_files']}",
              f"- Code: {s['leaks']['code']}",
              f"- Credentials: {s['leaks']['credentials']}",
              f"- Emails: {s['leaks']['emails']}",

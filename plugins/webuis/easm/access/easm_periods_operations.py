@@ -114,7 +114,7 @@ class PeriodStatusStore:
             raise ContractRuntimeError("forbidden", status_code=403, user_message="Only administrators can publish periods.", request_id=rid)
         target = "published" if plan.operation.name == "publish" else "draft"
         now = _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-        with sqlite3.connect(DB_PATH) as db:
+        with sqlite3.connect(DB_PATH, timeout=10) as db:
             db.row_factory = sqlite3.Row
             row = db.execute("SELECT status, needs_review FROM periods WHERE period_id=?", (plan.entity_id,)).fetchone()
             if not row:

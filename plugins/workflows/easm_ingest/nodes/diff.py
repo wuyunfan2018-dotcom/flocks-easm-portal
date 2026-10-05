@@ -20,6 +20,7 @@ MODULE_MAP = [
     ("vulnerabilities",    ["risks", "vulnerabilities"],             False),
     ("dark_web",           ["leaks", "dark_web"],                    False),
     ("files",              ["leaks", "files"],                       False),
+    ("exposed_files",      ["leaks", "exposed_files"],               False),
     ("code",               ["leaks", "code"],                        False),
     ("credentials",        ["leaks", "credentials"],                 False),
     ("emails",             ["leaks", "emails"],                      False),
@@ -37,7 +38,7 @@ report_date = params.get("report_date") or ""
 
 previous_period_id = (params.get("previous_period_id") or "").strip()
 
-conn = sqlite3.connect(str(db_path))
+conn = sqlite3.connect(str(db_path), timeout=30)
 try:
     cur = conn.cursor()
     if not previous_period_id:

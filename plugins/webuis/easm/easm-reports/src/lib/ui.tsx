@@ -99,7 +99,7 @@ export function LifecyclePill({ row }: { row: any }) {
 export function AnalystStatusPill({ s }: { s: string }) {
   const label = ANALYST_STATUS_LABEL[s] || human(s);
   if (s === 'verified' || s === 'confirmed') return <Pill text={label} kind="blue" />;
-  if (s === 'taken_down') return <Pill text={label} kind="green" />;
+  if (s === 'taken_down' || s === 'removed' || s === 'fixed') return <Pill text={label} kind="green" />;
   if (s === 'to_confirm') return <Pill text={label} kind="orange" />;
   if (s === 'invalid' || s === 'expired') return <Pill text={label} kind="muted" />;
   return <Pill text={label} />;

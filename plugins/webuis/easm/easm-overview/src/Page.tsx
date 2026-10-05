@@ -80,6 +80,7 @@ function Overview({ portal }: { portal: Portal }) {
         <div className="tiles">
           {T('Dark web leaks (open)', S.leaks?.dark_web?.open, PS.dark_web_open, `${PAGE.leaks}?tab=dark-web`)}
           {T('File leaks (open)', S.leaks?.files?.open, PS.files_open, `${PAGE.leaks}?tab=files`)}
+          {T('Files exposed without login', S.leaks?.exposed_files?.current, PS.exposed_files_current, `${PAGE.leaks}?tab=exposed-files`)}
           {T('Code leaks', S.leaks?.code?.current, PS.code_current, `${PAGE.leaks}?tab=code`)}
           {T('Leaked credentials', S.leaks?.credentials?.total, PS.credentials, `${PAGE.leaks}?tab=credentials`)}
           {T('Verified logins', S.leaks?.credentials?.verified_login, PS.credentials_verified, `${PAGE.leaks}?tab=credentials`)}
@@ -95,10 +96,11 @@ function Overview({ portal }: { portal: Portal }) {
             { label: 'Login portals', a: S.risks?.login_portals?.new || 0, b: S.risks?.login_portals?.closed || 0 },
             { label: 'Mobile apps', a: (S.assets?.mobile_apps?.by_lifecycle?.new || 0) + (S.assets?.mobile_apps?.by_lifecycle?.updated || 0), b: S.assets?.mobile_apps?.by_lifecycle?.closed || 0 },
             { label: 'Dark web', a: S.leaks?.dark_web?.new || 0, b: LC.dark_web?.closed || 0 },
+            { label: 'Exposed files', a: S.leaks?.exposed_files?.new || 0, b: S.leaks?.exposed_files?.by_lifecycle?.closed || 0 },
             { label: 'Emails', a: S.leaks?.emails?.new || 0, b: LC.emails?.closed || 0 },
           ]} seriesA={{ label: 'New this period', color: BLUE }} seriesB={{ label: 'Closed / removed', color: DIM }} aria="New versus closed items per module" />
         </Card>
-        <Card title="Findings by severity" sub={<>{fmt(totalFindings)} tracked findings · rules-v1 severity</>} right={<a onClick={() => navigate(PAGE.findings)}>Open tracker</a>}>
+        <Card title="Findings by severity" sub={<>{fmt(totalFindings)} tracked findings · {X.method || 'rules'} severity</>} right={<a onClick={() => navigate(PAGE.findings)}>Open tracker</a>}>
           <BarList items={[{ label: 'High', value: sev.high || 0 }, { label: 'Medium', value: sev.medium || 0 }, { label: 'Low', value: sev.low || 0 }]} barH={20} gap={10} aria="Findings by severity" />
           <Note className="mt-12 small">Emails are tracked as one aggregated finding per period; individual addresses are listed under Data Leaks.</Note>
         </Card>

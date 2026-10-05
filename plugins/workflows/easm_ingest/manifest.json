@@ -6,7 +6,7 @@
   "nameCn": "EASM 期次入库",
   "description": "Converts one reporting period of EASM deliverables (asset inventory xls/xlsx + report docx) or a ready data pack into the portal's SQLite snapshot as a draft, computes aggregates and period-over-period diff.",
   "descriptionCn": "把一期 EASM 交付物（资产清单 xls/xlsx + 报告 docx）或现成的数据包转换并写入门户的 SQLite 快照（草稿），计算聚合与期次差异。",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "author": "ThreatBook",
   "license": "Proprietary",
   "homepage": "https://github.com/wuyunfan2018-dotcom/flocks-easm-portal",

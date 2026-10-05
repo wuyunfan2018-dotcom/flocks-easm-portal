@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.2 — 2026-10-05
+
+- New module **Unauthenticated file exposure** (`leaks.exposed_files`, table `exposed_files`): the analysts' Risk sheet gained a `Risk Type / Associated Information / URL / Threat level / Describe / Repair Suggestions` layout; rows of type *File* (documents reachable without login on the organisation's own websites, report section "Unauthenticated File Exposure on the Internet") are now parsed, summarised (by website / file type / severity), cross-checked against the report heading, enriched with the report's per-file findings, tracked as findings and shown on **Data leaks → Exposed files**, the Overview tiles and the coverage table. Other risk types still go to `risks.vulnerabilities`, which now renders a table when rows exist.
+- Exposure index moves to **rules-v2**: exposed files 5 pts (saturates at 20), vulnerabilities 10 → 5 pts; weights still sum to 100. Threat level "Middle" maps to medium.
+- Previous-period KPI deltas on the Overview are derived from the previous period's snapshot in the DB when no `previous-summary.json` backfill was supplied.
+- Convert node self-heals its Python dependencies: a Flocks upgrade can rebuild the venv while the workflow engine's requirements marker still says installed; the node now probes the interpreter and reinstalls missing packages with `uv pip install --python <venv>`.
+- Ingest inherits `customer_id` / `customer_name` from the previous (or latest) period in the DB when the run does not pass them, instead of falling back to placeholders.
+- Period switcher: a draft period is no longer labelled "latest, published".
+- Page API tolerates a module table that does not exist yet (DB created by an older version): empty rows instead of a 500.
+
 ## 0.9.1 — 2026-10-01
 
 - Flocks 2026.9.23 support: the installer now registers the portal in the bundled Flocks Hub catalog by default (`--no-hub` to skip). The new Flocks hides scene workspaces that no Hub scene suite declares, which made the portal vanish from the navigation after the upgrade. Re-run `install.py` after every Flocks upgrade.

@@ -49,6 +49,13 @@ python3 install.py           # Windows: python install.py · --dry-run to previe
 2. Open **Scene Workspaces → ThreatBook EASM Portal**. Every page shows *No period is available yet*.
 3. Load a period: upload the deliverables (asset inventory `.xls/.xlsx`, the report `.docx`, optionally the login-verification `.docx`) to `workspace/easm/inbox/<period_id>/`, then run the `easm_ingest` workflow (Workflows page, the *Run ingest* form on the Reports page, or ask Rex). A ready-made `datapack.json` that follows the schema can be ingested directly with `datapack_path`.
 4. Review the draft on the **Reports** page (cross-checks, warnings, row counts) and click **Publish**. Customers only ever see published periods.
+5. Optional: put per-instance ingest defaults in `workspace/easm/ingest-defaults.json` so runs from the Reports form or a chat need only the period id, report number and date:
+
+   ```json
+   { "customer_id": "acme", "customer_name": "ACME Ltd", "rebrand": "OldVendorName:ThreatBook" }
+   ```
+
+   Explicit run inputs win; without the file the customer fields are inherited from the previous period in the database. `rebrand` only touches report-derived prose, never data fields.
 
 ## Security model in one paragraph
 

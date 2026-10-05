@@ -23,26 +23,31 @@ export function usePortal(): Portal {
   const [state, setState] = useState<{ loading: boolean; error: string | null; data: Summary | null; fetchedFor: string | null }>({ loading: true, error: null, data: null, fetchedFor: null });
   const [tick, setTick] = useState(0);
 
-  // A period id that is not in the DB (KPI-level backfill from previous_summary) is served from the latest period's payload.
-  const virtualIds = useMemo(() => {
-    const d = state.data; if (!d) return new Set<string>();
+  // A period id that is not in the DB (KPI-level backfill from a previous-summary.json) is served from the payload of
+  // the period that carries it (`kpi_periods[].carrier`); older payloads only expose it through previous_summary.
+  const kpiPeriods = useMemo(() => {
+    const d = state.data; if (!d) return [] as any[];
     const dbIds = new Set((d.periods || []).map((p) => p.period_id));
-    const v = new Set<string>();
-    const ps = d.previous_summary; if (ps?.period_id && !dbIds.has(ps.period_id)) v.add(ps.period_id);
-    return v;
+    const list: any[] = (d.kpi_periods || []).filter((k: any) => k?.period_id && !dbIds.has(k.period_id));
+    const ps = d.previous_summary;
+    if (ps?.period_id && !dbIds.has(ps.period_id) && !list.some((k) => k.period_id === ps.period_id)) list.push({ ...ps, carrier: d.period?.period_id });
+    return list;
   }, [state.data]);
+  const virtualIds = useMemo(() => new Set<string>(kpiPeriods.map((k) => k.period_id)), [kpiPeriods]);
+  const carrierOf = (id: string) => kpiPeriods.find((k) => k.period_id === id)?.carrier || '';
 
   useEffect(() => {
     let alive = true;
     const want = selectedId || '';
-    const fetchFor = state.data && virtualIds.has(want) ? '' : want;
+    const fetchFor = state.data && virtualIds.has(want) ? (carrierOf(want) === (state.data.latest || '') ? '' : carrierOf(want)) : want;
     setState((s) => ({ ...s, loading: true, error: null }));
     getSummary(fetchFor).then((data) => {
       if (!alive) return;
       // if the requested id turned out to be a KPI-only period we may have fetched the wrong period: re-fetch latest
       const dbIds = new Set((data.periods || []).map((p) => p.period_id));
       const ps = data.previous_summary;
-      if (want && !dbIds.has(want) && data.period && data.period.period_id !== want && !(ps && ps.period_id === want)) {
+      const known = (data.kpi_periods || []).some((k: any) => k?.period_id === want) || (ps && ps.period_id === want);
+      if (want && !dbIds.has(want) && data.period && data.period.period_id !== want && !known) {
         setState({ loading: false, error: `Period ${want} is not available to you.`, data, fetchedFor: fetchFor });
       } else setState({ loading: false, error: null, data, fetchedFor: fetchFor });
     }).catch((e) => { if (alive) setState((s) => ({ ...s, loading: false, error: String(e?.response?.data?.detail || e?.message || e) })); });
@@ -61,10 +66,10 @@ export function usePortal(): Portal {
   const periods: PeriodOption[] = useMemo(() => {
     if (!d) return [];
     const out: PeriodOption[] = (d.periods || []).map((p) => ({ id: p.period_id, label: `${p.label || periodLabel(p.period_id)}`, status: p.status, report_no: p.report_no, report_date: p.report_date }));
-    const ps = d.previous_summary;
-    if (ps?.period_id && !out.some((p) => p.id === ps.period_id)) out.push({ id: ps.period_id, label: `${periodLabel(ps.period_id)} · Report No.${ps.report_no ?? '?'}`, status: 'kpi', report_no: ps.report_no, report_date: ps.report_date, virtual: true });
+    kpiPeriods.forEach((k) => { if (!out.some((p) => p.id === k.period_id)) out.push({ id: k.period_id, label: `${periodLabel(k.period_id)} · Report No.${k.report_no ?? '?'}`, status: 'kpi', report_no: k.report_no, report_date: k.report_date, virtual: true }); });
+    out.sort((a, b) => (b.report_date || '').localeCompare(a.report_date || '') || b.id.localeCompare(a.id));
     return out;
-  }, [d]);
+  }, [d, kpiPeriods]);
   const isKpiOnly = !!(selectedId && virtualIds.has(selectedId));
   const period = d?.period || null;
   const isDraft = !isKpiOnly && period?.status === 'draft';
@@ -77,10 +82,11 @@ export function usePortal(): Portal {
   }, [d?.latest]);
   const reload = useCallback(() => setTick((t) => t + 1), []);
   const ps = d?.previous_summary;
+  const kpiBlock = isKpiOnly ? (kpiPeriods.find((k) => k.period_id === selectedId) || null) : null;
   return {
     loading: state.loading, error: state.error, data: d, period, periods, selectedId,
     isAdmin: !!d?.is_admin, user: d?.user || '', latestId, isLatest, isHistorical, isDraft, isKpiOnly,
-    kpi: isKpiOnly ? ps : null, prevLabel: ps?.period_id ? periodLabel(ps.period_id) : (d?.previous_period ? periodLabel(d.previous_period.period_id) : null),
+    kpi: kpiBlock, prevLabel: ps?.period_id ? periodLabel(ps.period_id) : (d?.previous_period ? periodLabel(d.previous_period.period_id) : null),
     setPeriod, reload,
   };
 }
@@ -110,7 +116,7 @@ export function PortalShell({ portal, title, sub, actions, children, customer }:
             <select id="easm-period" className="select select-sm" value={portal.selectedId || portal.latestId || ''} onChange={(e) => portal.setPeriod(e.target.value)} aria-label="Reporting period" disabled={!portal.periods.length}>
               {portal.periods.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.label}{p.id === portal.latestId ? ' · latest, published' : p.status === 'draft' ? ' · draft (admin only)' : p.status === 'kpi' ? ' · KPI-level only' : ' · published'}{p.report_date ? ' ' + p.report_date : ''}
+                  {p.label}{p.status === 'draft' ? ' · draft (admin only)' : p.status === 'kpi' ? ' · KPI-level only' : p.id === portal.latestId ? ' · latest, published' : ' · published'}{p.report_date ? ' ' + p.report_date : ''}
                 </option>
               ))}
             </select>
@@ -145,7 +151,7 @@ export function PortalShell({ portal, title, sub, actions, children, customer }:
 
 export const kpiTiles = (k: any) => [
   ['Subdomains', k?.domains_current], ['IP addresses', k?.ips_total], ['Websites', k?.websites], ['IPs with open services', k?.ips_with_open_services],
-  ['Exposed login portals', k?.login_portals], ['Certificate risks', k?.certificate_risks], ['Dark web leaks (open)', k?.dark_web_open], ['File leaks (open)', k?.files_open],
+  ['Exposed login portals', k?.login_portals], ['Certificate risks', k?.certificate_risks], ['Dark web leaks (open)', k?.dark_web_open], ['File leaks (open)', k?.files_open], ['Unauthenticated file exposure', k?.exposed_files_current],
   ['Code leaks', k?.code_current], ['Leaked credentials', k?.credentials], ['Corporate emails', k?.emails], ['Mobile apps', k?.mobile_apps],
 ] as Array<[string, number | null | undefined]>;
 

@@ -28,6 +28,7 @@ MODULE_MAP = [
     ("vulnerabilities",    ["risks", "vulnerabilities"],             False),
     ("dark_web",           ["leaks", "dark_web"],                    False),
     ("files",              ["leaks", "files"],                       False),
+    ("exposed_files",      ["leaks", "exposed_files"],               False),
     ("code",               ["leaks", "code"],                        False),
     ("credentials",        ["leaks", "credentials"],                 False),
     ("emails",             ["leaks", "emails"],                      False),
@@ -113,6 +114,8 @@ def _derive(table_name, rec):
         rec["_sens"] = "confirmed" if rec.get("sensitive_data_found") else ("suspected" if rec.get("sensitive_data_suspected") else "none")
     elif table_name == "emails":
         rec["_src"] = rec.get("source_host") or rec.get("source") or "unknown"
+    elif table_name == "exposed_files":
+        rec["_ftype"] = (rec.get("file_type") or "other").lower()
     elif table_name == "credentials":
         rec["_verified"] = "Verified" if rec.get("verified_login") else "Not verified"
     return rec
@@ -162,8 +165,11 @@ def _aggregates(lists):
     A["login_portals"] = {"lifecycle": _top(lp, g("lifecycle")), "scheme": _top(lp, g("scheme")), "severity": _top(lp, g("severity")),
                           "scheme_current": [{"label": "Plain HTTP", "value": sum(1 for p in lp_cur if p.get("scheme") == "http")},
                                              {"label": "HTTPS", "value": sum(1 for p in lp_cur if p.get("scheme") == "https")}]}
+    A["vulnerabilities"] = {"severity": _top(L("vulnerabilities"), g("severity")), "risk_type": _top(L("vulnerabilities"), g("risk_type")), "lifecycle": _top(L("vulnerabilities"), g("lifecycle"))}
     A["dark_web"] = {"_status": _top(L("dark_web"), g("_status")), "forum": _top(L("dark_web"), g("forum"), 5)}
     A["files"] = {"taken_down": _top(L("files"), lambda r: "Taken down" if r.get("taken_down") else "Open")}
+    A["exposed_files"] = {"host": _top(L("exposed_files"), g("host"), 8), "_ftype": _top(L("exposed_files"), g("_ftype")),
+                          "severity": _top(L("exposed_files"), g("severity")), "lifecycle": _top(L("exposed_files"), g("lifecycle"))}
     A["code"] = {"_sens": _top(L("code"), g("_sens")), "lifecycle": _top(L("code"), g("lifecycle")),
                  "suspected": sum(1 for c in L("code") if c.get("sensitive_data_suspected")), "expired": sum(1 for c in L("code") if c.get("lifecycle") == "closed")}
     A["credentials"] = {"_verified": _top(L("credentials"), g("_verified")), "host": _top(L("credentials"), g("host"), 4)}
@@ -220,9 +226,12 @@ OTHER_DDL = [
     "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)",
 ]
 
-conn = sqlite3.connect(str(db_path))
+conn = sqlite3.connect(str(db_path), timeout=30)
 try:
     cur = conn.cursor()
+    # WAL: the portal's read-only page API keeps answering while a period is being written (rollback-journal
+    # mode blocks every reader for the whole load transaction and surfaces as "database is locked").
+    cur.execute("PRAGMA journal_mode=WAL")
     cur.execute(PERIOD_DDL)
     for table_name, _, _ in MODULE_MAP:
         cur.execute(MODULE_DDL_TEMPLATE.format(table=table_name))

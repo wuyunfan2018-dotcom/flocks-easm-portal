@@ -6,7 +6,7 @@
   "nameCn": "ThreatBook EASM Portal 套件",
   "description": "Composite installer for the ThreatBook EASM Portal: six workspace pages with access contracts, the easm_ingest workflow and the easm-ingest skill. Ships no data; ingest a period after installing.",
   "descriptionCn": "ThreatBook EASM Portal 套件安装器：六个工作区页面（含访问契约）、easm_ingest 入库工作流和 easm-ingest 技能。不含任何数据，安装后灌入期次即可。",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "author": "ThreatBook",
   "license": "Proprietary",
   "homepage": "https://github.com/wuyunfan2018-dotcom/flocks-easm-portal",

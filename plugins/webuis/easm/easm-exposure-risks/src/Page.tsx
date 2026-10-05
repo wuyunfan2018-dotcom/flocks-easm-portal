@@ -27,7 +27,7 @@ function Body({ portal }: { portal: Portal }) {
   useEffect(() => { const el = document.getElementById('sec-' + active); if (el && getQuery().get('tab')) el.scrollIntoView({ block: 'start' }); }, [active]);
   const go = (id: string) => { setActive(id); setQuery({ tab: id === 'login-portals' ? null : id }); document.getElementById('sec-' + id)?.scrollIntoView({ block: 'start' }); };
   const covOf = (m: string) => cov.find((c: any) => c.module === m);
-  const counts: Record<string, number | null> = { 'login-portals': lp.current, certificates: S.risks?.certificates?.current, 'risky-services': 0, 'malicious-ip': 0, vulnerabilities: 0, 'http-headers': null };
+  const counts: Record<string, number | null> = { 'login-portals': lp.current, certificates: S.risks?.certificates?.current, 'risky-services': 0, 'malicious-ip': 0, vulnerabilities: S.risks?.vulnerabilities?.current || 0, 'http-headers': null };
   const certBuckets = [{ label: 'Expired', value: H.expired || 0 }, { label: 'Expires < 30 days', value: H.lt_30d || 0 }, { label: 'Expires < 90 days', value: H.lt_90d || 0 }, { label: 'Valid ≥ 90 days', value: H.ge_90d || 0 }];
   return (
     <>
@@ -88,8 +88,27 @@ function Body({ portal }: { portal: Portal }) {
 
       <div className="section" id="sec-vulnerabilities">
         <div className="section-title">Vulnerabilities</div><div className="section-sub">Exploitable vulnerabilities on internet-facing assets</div>
-        <NoneCard title="Vulnerabilities" coverage={covOf('vulnerabilities')} fallbackDate={d.period?.report_date} />
-        <Note className="mt-8 small">Scanned continuously. When findings appear they carry: vulnerability, threat level, affected URL, verification result and remediation.</Note>
+        <ModuleNarrative narrative={N} mod="vulnerabilities" />
+        {S.risks?.vulnerabilities?.current ? (
+          <Card>
+            <DataTable module="vulnerabilities" extraParams={{ with_status: 1 }} searchPlaceholder="Search vulnerability, URL or description"
+              facets={[facet('Severity', A.vulnerabilities?.severity, 'severity', cap), facet('Risk type', A.vulnerabilities?.risk_type, 'risk_type', cap), facet('Lifecycle', A.vulnerabilities?.lifecycle, 'lifecycle', cap)]}
+              columns={[
+                { key: 'name', label: 'Vulnerability', width: '240px', cls: 'wrap' }, { key: 'url', label: 'Affected URL', render: (r) => <Mono v={r.url} /> },
+                { key: 'risk_type', label: 'Type', width: '110px', render: (r) => cap(r.risk_type) }, { key: 'severity', label: 'Severity', width: '100px', render: (r) => <SevBadge sev={r.severity} />, sortKey: '_sev' },
+                { key: 'verified', label: 'Verified', width: '100px' }, { key: 'lifecycle', label: 'Lifecycle', width: '110px', render: (r) => <LifecyclePill row={r} /> },
+              ]}
+              onRow={(r) => ui.openDrawer({ kicker: 'Vulnerability', title: r.name, sub: <><SevBadge sev={r.severity} /> <LifecyclePill row={r} /></>, body: (
+                <>
+                  <KV pairs={[['Affected URL', <Mono v={r.url} />], ['Host', <Mono v={r.host} />], ['Risk type', cap(r.risk_type)], ['Threat level (analyst)', r.threat_level], ['Verification', r.verified], ['Customer status', r.customer_status ? <CustomerStatusPill s={r.customer_status} /> : null]]} />
+                  {r.description ? <><h4>Description</h4><p className="small secondary pre">{r.description}</p></> : null}
+                  {r.remediation ? <><h4>Remediation</h4><p className="small secondary pre">{r.remediation}</p></> : null}
+                  <Recommendations narrative={N} mod="vulnerabilities" />
+                </>
+              ) })} />
+          </Card>
+        ) : <NoneCard title="Vulnerabilities" coverage={covOf('vulnerabilities')} fallbackDate={d.period?.report_date} />}
+        <Note className="mt-8 small">Scanned continuously. When findings appear they carry: vulnerability, threat level, affected URL, verification result and remediation. Documents reachable without login on the organisation's own websites are tracked separately under <a onClick={() => navigate(`${PAGE.leaks}?tab=exposed-files`)}>Data leaks → Exposed files</a>.</Note>
       </div>
 
       <div className="section" id="sec-http-headers">

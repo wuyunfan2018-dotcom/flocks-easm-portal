@@ -7,7 +7,7 @@ import { CUSTOMER_STATUSES, MODULE_LABEL, MODULE_ROUTE, PAGE, cap, downloadText,
 
 const CONTRACT = 'easm.findings.operations';
 const PAGE_ID = 'easm-findings';
-const ENTITY_TABLE: Record<string, string> = { login_portals: 'login_portals', certificates: 'certificate_risks', vulnerabilities: 'vulnerabilities', dark_web: 'dark_web', files: 'files', code: 'code', credentials: 'credentials' };
+const ENTITY_TABLE: Record<string, string> = { login_portals: 'login_portals', certificates: 'certificate_risks', vulnerabilities: 'vulnerabilities', dark_web: 'dark_web', files: 'files', exposed_files: 'exposed_files', code: 'code', credentials: 'credentials' };
 
 async function mutate(op: 'set_status' | 'set_owner' | 'set_note', id: string, fields: Record<string, any>) {
   return contractOp(PAGE_ID, CONTRACT, op, { params: { entityType: 'finding', entityId: id, ...fields }, idempotencyKey: `${op}:${id}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}` });
@@ -37,7 +37,7 @@ function Tracker({ portal }: { portal: Portal }) {
       const res = await mutate(op, id, fields);
       localEdits.current[id] = { ...(localEdits.current[id] || {}), ...fields, overlay_version: res.overlayVersion };
       if (!quiet) ui.toast(<><strong>Saved</strong><br />{human(Object.keys(fields)[0])} updated for {id}.</>, 2500);
-      if ('customer_status' in fields) loadStats();
+      if ('customer_status' in fields && !quiet) loadStats();
       return true;
     } catch (e: any) {
       ui.toast(<><strong>Could not save</strong><br />{errorText(e)}</>, 6000);
@@ -68,12 +68,12 @@ function Tracker({ portal }: { portal: Portal }) {
   return (
     <>
       <div className="row-between mb-16">
-        <div className="tiles" style={{ flex: 1 }}>{CUSTOMER_STATUSES.map(([k, label]) => <Tile key={k} label={label} value={stats[k] || 0} />)}</div>
+        <div className="tiles" style={{ flex: 1, gridTemplateColumns: `repeat(${CUSTOMER_STATUSES.length}, minmax(0, 1fr))` }}>{CUSTOMER_STATUSES.map(([k, label]) => <Tile key={k} label={label} value={stats[k] || 0} />)}</div>
         <button className="btn" onClick={exportCsv}>Export CSV</button>
       </div>
       <Card>
         <DataTable module="findings" refreshKey={refreshKey} selectable minWidth={1180} searchPlaceholder="Search findings" defaultSort={{ key: '_sev', dir: 'asc' }} facets={facets} selects={selects}
-          bulk={(ids, clear) => <BulkBar ids={ids} clear={clear} busy={busy} onApply={async (status) => { setBusy(true); let ok = 0; for (const id of ids) { if (await apply('set_status', id, { customer_status: status }, true)) ok++; } setBusy(false); clear(); setRefreshKey((k) => k + 1); loadStats(); ui.toast(<><strong>{fmt(ok)} of {fmt(ids.length)} findings set to {(CUSTOMER_STATUSES.find((s) => s[0] === status) || [])[1] || status}</strong><br />Saved through the audited access contract.</>); }} />}
+          bulk={(ids, clear) => <BulkBar ids={ids} clear={clear} busy={busy} onApply={async (status) => { setBusy(true); let ok = 0; for (let i = 0; i < ids.length; i += 6) { const res = await Promise.all(ids.slice(i, i + 6).map((id) => apply('set_status', id, { customer_status: status }, true))); ok += res.filter(Boolean).length; } setBusy(false); clear(); setRefreshKey((k) => k + 1); loadStats(); ui.toast(<><strong>{fmt(ok)} of {fmt(ids.length)} findings set to {(CUSTOMER_STATUSES.find((s) => s[0] === status) || [])[1] || status}</strong><br />Saved through the audited access contract.</>); }} />}
           columns={[
             { key: 'severity', label: 'Severity', width: '96px', render: (f) => <SevBadge sev={f.severity} />, sortKey: '_sev' },
             { key: 'module', label: 'Module', width: '150px', render: (f) => MODULE_LABEL[f.module] || human(f.module) },
@@ -108,6 +108,7 @@ function OwnerInput({ f, edits, apply }: { f: any; edits: React.MutableRefObject
 function FindingDrawer({ f, table, entityId, apply, latest }: { f: any; table?: string; entityId?: string; apply: (op: any, id: string, fields: any) => Promise<boolean>; latest: string | null }) {
   const [entity, setEntity] = useState<any>(null);
   const [note, setNote] = useState(f.customer_note || '');
+  const savedNote = useRef(f.customer_note || '');  // last value persisted, so clearing a note typed in this drawer session also saves
   const [status, setStatus] = useState(f.customer_status || 'open');
   useEffect(() => { if (table && entityId) getEntity(table, entityId).then((r) => setEntity(r.record)).catch(() => setEntity(null)); }, [table, entityId]);
   return (
@@ -116,7 +117,7 @@ function FindingDrawer({ f, table, entityId, apply, latest }: { f: any; table?: 
       <h4>Customer status</h4>
       <select className="select select-sm" value={status} onChange={async (e) => { const nv = e.target.value; const old = status; setStatus(nv); if (!(await apply('set_status', f.id, { customer_status: nv }))) setStatus(old); }}>{CUSTOMER_STATUSES.map((s) => <option key={s[0]} value={s[0]}>{s[1]}</option>)}</select>
       <h4>Customer note</h4>
-      <textarea className="input" value={note} placeholder="Add context for your team" onChange={(e) => setNote(e.target.value)} onBlur={() => { if (note !== (f.customer_note || '')) apply('set_note', f.id, { customer_note: note }); }} />
+      <textarea className="input" value={note} placeholder="Add context for your team" onChange={(e) => setNote(e.target.value)} onBlur={() => { if (note !== savedNote.current) apply('set_note', f.id, { customer_note: note }).then((ok) => { if (ok) savedNote.current = note; }); }} />
       {entity ? <><h4>Entity</h4><GenericKV row={entity} /></> : f.entity_ref?.type === 'email_set' ? <><h4>Entity</h4><p className="small secondary">Aggregated finding: {fmt(f.aggregate_count)} corporate email addresses are listed under <a onClick={() => navigate(`${PAGE.leaks}?tab=emails`)}>Data Leaks · Emails</a>.</p></> : null}
       {MODULE_ROUTE[f.module] ? <div className="mt-16"><a onClick={() => navigate(MODULE_ROUTE[f.module])}>Open module page</a></div> : null}
     </>
