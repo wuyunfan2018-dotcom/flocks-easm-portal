@@ -3,7 +3,7 @@
   "title": "暴露风险",
   "titleEn": "Exposure Risks",
   "route": "/contracts/webui/easm-exposure-risks",
-  "icon": "ShieldAlert",
+  "icon": "AlertTriangle",
   "order": 30,
   "enabled": true,
   "placement": "home.after",

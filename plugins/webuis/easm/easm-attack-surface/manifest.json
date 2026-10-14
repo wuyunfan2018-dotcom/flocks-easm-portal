@@ -3,7 +3,7 @@
   "title": "攻击面",
   "titleEn": "Attack Surface",
   "route": "/contracts/webui/easm-attack-surface",
-  "icon": "Network",
+  "icon": "Activity",
   "order": 20,
   "enabled": true,
   "placement": "home.after",

@@ -3,7 +3,7 @@
   "title": "数据泄露",
   "titleEn": "Data Leaks",
   "route": "/contracts/webui/easm-data-leaks",
-  "icon": "Database",
+  "icon": "FolderOpen",
   "order": 40,
   "enabled": true,
   "placement": "home.after",

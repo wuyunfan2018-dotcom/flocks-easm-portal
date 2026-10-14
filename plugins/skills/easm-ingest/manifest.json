@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "hub.plugin.v1",
+  "id": "easm-ingest",
+  "type": "skill",
+  "name": "EASM ingest (chat)",
+  "nameCn": "EASM 期次入库（对话）",
+  "description": "Lets Rex load a new EASM reporting period from files attached in a chat by running the easm_ingest workflow.",
+  "descriptionCn": "让 Rex 在对话里接收附件并调用 easm_ingest 工作流，把新一期 EASM 交付物入库为草稿。",
+  "version": "0.9.3",
+  "author": "ThreatBook",
+  "license": "Proprietary",
+  "homepage": "https://github.com/wuyunfan2018-dotcom/flocks-easm-portal",
+  "category": "workflow-automation",
+  "tags": [
+    "easm",
+    "attack-surface",
+    "integration"
+  ],
+  "useCases": [
+    "security-reporting"
+  ],
+  "domains": [
+    "security-ops"
+  ],
+  "capabilities": [
+    "workflow"
+  ],
+  "trust": "verified",
+  "source": {
+    "kind": "bundled",
+    "path": "plugins/skills/easm-ingest"
+  },
+  "compatibility": {
+    "flocks": ">=2026.8.17",
+    "os": [
+      "darwin",
+      "linux",
+      "windows"
+    ]
+  },
+  "dependencies": {
+    "skills": [],
+    "tools": [],
+    "python": [],
+    "external": []
+  },
+  "permissions": {
+    "tools": [],
+    "network": false,
+    "shell": false,
+    "filesystem": "read"
+  },
+  "risk": {
+    "level": "low",
+    "reasons": []
+  },
+  "entrypoints": [
+    "SKILL.md"
+  ],
+  "checksums": {}
+}

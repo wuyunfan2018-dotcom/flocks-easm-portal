@@ -36,7 +36,19 @@ cd flocks-easm-portal
 python3 install.py           # Windows: python install.py · --dry-run to preview · --no-hub to skip the Hub catalog registration
 ```
 
-`install.py` is idempotent: run it again to upgrade, **and run it again after every Flocks upgrade**: Flocks 2026.9.23 and later only show a scene workspace when a Hub scene suite declares it, and a Flocks upgrade replaces the Hub catalog, so the portal disappears from the navigation until the installer re-registers it (the data is untouched). After the installer finishes, click *Refresh* on the Flocks Hub page or restart Flocks so the catalog is re-read. It works on macOS, Linux and Windows with any Python >= 3.9 and needs no third-party packages; it finds the Flocks virtualenv through the `flocks` launcher to build the page bundles (if that fails, the Flocks file watcher builds them while Flocks is running). It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
+`install.py` is idempotent: run it again to upgrade the portal. It works on macOS, Linux and Windows with any Python >= 3.9 and needs no third-party packages; it finds the Flocks virtualenv through the `flocks` launcher to register the suite and build the page bundles (if the build fails, the Flocks file watcher builds them while Flocks is running). It never touches `~/.flocks/data/easm.db`, existing evidence screenshots or the inbox. `python install.py --uninstall` removes the portal and keeps the data.
+
+**Why a registration step, and Flocks upgrades.** Flocks 2026.9.23 and later only show a scene workspace when a Hub *scene suite* declares it. On **Flocks 2026.10.13 and later** the installer keeps that registration entirely in your user directory, so Flocks upgrades no longer hide the portal:
+
+| File | Purpose |
+| --- | --- |
+| `~/.flocks/hub-extensions/threatbook-easm/` | the suite's Hub catalog (`index.json` + manifests and payload) |
+| `~/.flocks/plugins/tasks/threatbook_easm_hub.py`, `~/.flocks/plugins/tools/python/threatbook_easm_hub_tools.py` | a 40-line start-up hook that adds that catalog to the Flocks Hub (`flocks.extensions.register_hub_root`); it defines no tasks or tools |
+| `~/.flocks/plugins/components/easm-portal/component.json` + Hub install records | so *Scene management* shows the suite as installed |
+
+After installing, **restart Flocks once**, or click *Refresh* on the Flocks *Tools* page (that reloads the hook without a restart). The installer also switches the `easm` workspace on, as the scene manager does after installing a suite.
+
+On Flocks 2026.9.23 – 2026.10.12 the installer falls back to the bundled Hub catalog inside the Flocks install directory. An upgrade replaces that directory, so on those versions re-run the installer after every Flocks upgrade and click *Refresh* on the Flocks Hub page.
 
 ### After installing
 
@@ -46,7 +58,7 @@ python3 install.py           # Windows: python install.py · --dry-run to previe
    python -c "from cryptography.fernet import Fernet;print(Fernet.generate_key().decode())"
    ```
 
-2. Open **Scene Workspaces → ThreatBook EASM Portal**. Every page shows *No period is available yet*.
+2. Pick **EASM Portal** in the workspace switcher at the top of Flocks (older Flocks: *Scene Workspaces → ThreatBook EASM Portal*). Every page shows *No period is available yet*. To hide or show it later use *Scene management* (启用 / 停用 on the ThreatBook EASM card); *Uninstall* there removes the pages.
 3. Load a period: upload the deliverables (asset inventory `.xls/.xlsx`, the report `.docx`, optionally the login-verification `.docx`) to `workspace/easm/inbox/<period_id>/`, then run the `easm_ingest` workflow (Workflows page, the *Run ingest* form on the Reports page, or ask Rex). A ready-made `datapack.json` that follows the schema can be ingested directly with `datapack_path`.
 4. Review the draft on the **Reports** page (cross-checks, warnings, row counts) and click **Publish**. Customers only ever see published periods.
 5. Optional: put per-instance ingest defaults in `workspace/easm/ingest-defaults.json` so runs from the Reports form or a chat need only the period id, report number and date:

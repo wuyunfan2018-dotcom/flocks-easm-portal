@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.3 — 2026-10-14
+
+- **Flocks upgrades no longer hide the portal (Flocks 2026.10.13+).** The scene-suite registration moved out of the Flocks install directory into the user directory: a Hub catalog in `~/.flocks/hub-extensions/threatbook-easm/` and a small start-up hook in `~/.flocks/plugins/tasks/` (plus `plugins/tools/python/`) that registers it with `flocks.extensions.register_hub_root`. The installer also writes the suite shell and Hub install records, so *Scene management* shows ThreatBook EASM as installed, and switches the `easm` workspace on. Older Flocks keep the previous bundled-catalog registration.
+- Flocks 2026.10.13 replaced the fixed "SOC Workspace" tab with a workspace switcher: the portal appears there as its own entry, *EASM Portal*, first after the Agent workspace (`order` 5).
+- Page icons changed to ones the Flocks WebUI ships (five of six used to fall back to the default icon).
+- The skill `easm-ingest` now has a Hub manifest, so the suite is complete in the catalog; `workspace.json` carries the package version so the Hub compares like with like.
+- Fix: the convert node did not pass `narrative_path` on, so a `narrative.json` in the inbox was silently ignored.
+
 ## 0.9.2 — 2026-10-05
 
 - New module **Unauthenticated file exposure** (`leaks.exposed_files`, table `exposed_files`): the analysts' Risk sheet gained a `Risk Type / Associated Information / URL / Threat level / Describe / Repair Suggestions` layout; rows of type *File* (documents reachable without login on the organisation's own websites, report section "Unauthenticated File Exposure on the Internet") are now parsed, summarised (by website / file type / severity), cross-checked against the report heading, enriched with the report's per-file findings, tracked as findings and shown on **Data leaks → Exposed files**, the Overview tiles and the coverage table. Other risk types still go to `risks.vulnerabilities`, which now renders a table when rows exist.

@@ -1,10 +1,10 @@
 {
   "id": "easm",
-  "version": "0.1.0",
+  "version": "0.9.3",
   "title": "EASM Portal",
   "titleEn": "ThreatBook EASM Portal",
   "icon": "Globe",
-  "order": 10,
+  "order": 5,
   "enabled": true,
   "placement": "sceneWorkspace",
   "defaultPageId": "easm-overview",

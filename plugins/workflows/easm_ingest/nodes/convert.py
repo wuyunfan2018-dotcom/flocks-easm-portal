@@ -139,4 +139,5 @@ outputs["convert_skipped"] = convert_skipped
 outputs["convert_log"] = convert_log
 outputs["convert_report_path"] = convert_report_path
 outputs["convert_error_tail"] = convert_error_tail
+outputs["narrative_path"] = inputs.get("narrative_path") or ""  # pass-through: validate/load_db apply an inbox narrative.json
 outputs["_edge_context"] = True

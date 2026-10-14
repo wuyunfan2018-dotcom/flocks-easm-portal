@@ -3,7 +3,7 @@
   "title": "EASM 总览",
   "titleEn": "Overview",
   "route": "/contracts/webui/easm-overview",
-  "icon": "Gauge",
+  "icon": "LayoutDashboard",
   "order": 10,
   "enabled": true,
   "placement": "home.after",
