@@ -1,5 +1,6 @@
 * text=auto eol=lf
 *.woff2 binary
 *.png binary
-*.cmd text eol=crlf
-*.ps1 text eol=crlf
+# stored byte-for-byte (CRLF, BOM) so GitHub's Download ZIP keeps Windows line endings too
+*.cmd -text
+*.ps1 -text
