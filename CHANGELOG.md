@@ -4,6 +4,7 @@
 
 - **Windows one-click installer** `install-windows.cmd` (+ `install-windows.ps1`): finds the Python of the Flocks virtualenv through `%USERPROFILE%\.local\bin\flocks.cmd` (no system Python needed), runs `install.py`, offers to generate `EASM_SECRET_KEY` into the user environment when none exists (never overwrites one), and offers to restart Flocks from its own process so the new key reaches the server. Flags: `-DryRun`, `-Uninstall`, `-NoKey`, `-NoRestart`, `-Yes`.
 - Chinese installation guide for Windows colleagues: `INSTALL-Windows.zh-CN.md`.
+- Chinese installation guide for Mac colleagues: `INSTALL-macOS.zh-CN.md` (Rex prompt without git/python3, key in `~/.zshrc`, bash variant).
 - Converter dependency self-heal uses the package index Flocks itself picks (Aliyun mirror on Chinese-locale systems), falls back to the Aliyun mirror when the first index fails, and finds `uv` in `~/.local/bin` when it is not on PATH (the Flocks venv has no pip).
 - `.cmd` / `.ps1` files keep CRLF line endings in the repository.
 

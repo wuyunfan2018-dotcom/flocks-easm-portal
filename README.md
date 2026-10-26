@@ -32,6 +32,10 @@ Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom
 
 Unzip the package (or clone the repository) and double-click **`install-windows.cmd`**. It finds the Flocks Python itself, runs `install.py`, offers to create `EASM_SECRET_KEY` and to restart Flocks. Chinese step-by-step guide: [`INSTALL-Windows.zh-CN.md`](INSTALL-Windows.zh-CN.md).
 
+### macOS: Rex prompt or one Terminal line
+
+Chinese step-by-step guide for Mac users (Rex prompt that downloads with curl and runs the installer with the Flocks Python, so no Xcode tools are needed; key setup in `~/.zshrc`): [`INSTALL-macOS.zh-CN.md`](INSTALL-macOS.zh-CN.md).
+
 ### By hand
 
 ```bash
