@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { getSummary, type Period, type Summary } from './api';
 import { ensureStyles } from './styles';
 import { UIProvider, PageHead, Pill } from './ui';
-import { fmt, getQuery, initials, periodLabel, setQuery } from './util';
+import { PAGE, fmt, getQuery, initials, navigate, periodLabel, setQuery } from './util';
 
 export interface PeriodOption { id: string; label: string; status: 'draft' | 'published' | 'kpi'; report_no?: number | null; report_date?: string | null; virtual?: boolean }
 export interface Portal {
@@ -99,7 +99,7 @@ export function PeriodSub({ portal, extra }: { portal: Portal; extra?: ReactNode
   return <>{p.label || periodLabel(p.period_id)} · report date {p.report_date} · {p.status === 'published' ? <span className="status status-green">Published</span> : <span className="status status-orange">Draft</span>}{extra ? <> · {extra}</> : null}</>;
 }
 
-export function PortalShell({ portal, title, sub, actions, children, customer }: { portal: Portal; title: string; sub?: ReactNode; actions?: ReactNode; children: ReactNode; customer?: string }) {
+export function PortalShell({ portal, title, sub, actions, children, customer, empty }: { portal: Portal; title: string; sub?: ReactNode; actions?: ReactNode; children: ReactNode; customer?: string; empty?: ReactNode }) {
   ensureStyles();
   const cust = customer || portal.period?.customer_name || portal.data?.period?.customer_name || '';
   return (
@@ -140,7 +140,10 @@ export function PortalShell({ portal, title, sub, actions, children, customer }:
           {portal.error ? <div className="error-box">{portal.error}</div> : null}
           {portal.loading && !portal.data ? <div className="loading">Loading…</div> : null}
           {!portal.loading && portal.data && !portal.data.period && !portal.isKpiOnly ? (
-            <div className="empty-state"><div className="title">No period is available yet</div>{portal.isAdmin ? 'Run the easm_ingest workflow to load a period, then review and publish it on the Reports page.' : 'No reporting period has been published yet.'}</div>
+            <>
+              <div className="empty-state"><div className="title">No period is available yet</div>{portal.isAdmin ? <>Load the first period on the <a onClick={() => navigate(PAGE.reports)}>Reports and periods</a> page (Run ingest), then review and publish it there.</> : 'No reporting period has been published yet.'}</div>
+              {portal.isAdmin && empty ? <div className="mt-16">{empty}</div> : null}
+            </>
           ) : null}
           {portal.data && (portal.data.period || portal.isKpiOnly) ? children : null}
         </div>

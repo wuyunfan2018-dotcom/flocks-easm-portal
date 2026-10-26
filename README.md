@@ -28,6 +28,10 @@ Paste this into a Rex session on the target Flocks instance:
 Install the ThreatBook EASM Portal: clone https://github.com/wuyunfan2018-dotcom/flocks-easm-portal into ~/.flocks/workspace/tmp/flocks-easm-portal (git pull if it already exists), then run `python3 install.py` (or `python install.py` on Windows) inside that directory, and show me the output.
 ```
 
+### Windows: one-click installer
+
+Unzip the package (or clone the repository) and double-click **`install-windows.cmd`**. It finds the Flocks Python itself, runs `install.py`, offers to create `EASM_SECRET_KEY` and to restart Flocks. Chinese step-by-step guide: [`INSTALL-Windows.zh-CN.md`](INSTALL-Windows.zh-CN.md).
+
 ### By hand
 
 ```bash

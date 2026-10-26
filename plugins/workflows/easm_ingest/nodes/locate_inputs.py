@@ -51,7 +51,7 @@ ingest_defaults = {}
 if DEFAULTS_FILE.is_file():
     try:
         import json as _json
-        ingest_defaults = _json.loads(DEFAULTS_FILE.read_text(encoding="utf-8")) or {}
+        ingest_defaults = _json.loads(DEFAULTS_FILE.read_text(encoding="utf-8-sig")) or {}
         if not isinstance(ingest_defaults, dict):
             ingest_defaults = {}
     except Exception as exc:
@@ -120,7 +120,8 @@ if mode == "convert":
         datapack_path = str(inbox_datapack.resolve())
 
 if mode == "convert":
-    files_in_inbox = sorted(p.name for p in inbox_dir.iterdir() if p.is_file())
+    _is_verification = lambda name: "verification" in name.lower() or "验证" in name
+    files_in_inbox = sorted(p.name for p in inbox_dir.iterdir() if p.is_file() and not p.name.startswith("~$"))  # skip Office lock files of open documents
 
     inv_matches = [n for n in files_in_inbox if re.search(r"asset inventory", n, re.IGNORECASE) and n.lower().endswith((".xls", ".xlsx"))]
     if not inv_matches:
@@ -130,11 +131,11 @@ if mode == "convert":
 
     rpt_matches = [n for n in files_in_inbox if re.search(r"easm report", n, re.IGNORECASE) and n.lower().endswith(".docx")]
     if not rpt_matches:
-        non_verif_docx = [n for n in files_in_inbox if n.lower().endswith(".docx") and "verification" not in n.lower()]
+        non_verif_docx = [n for n in files_in_inbox if n.lower().endswith(".docx") and not _is_verification(n)]
         if len(non_verif_docx) == 1:
             rpt_matches = non_verif_docx
 
-    ver_matches = [n for n in files_in_inbox if "verification" in n.lower() and n.lower().endswith(".docx")]
+    ver_matches = [n for n in files_in_inbox if _is_verification(n) and n.lower().endswith(".docx")]
 
     if not inv_matches:
         raise RuntimeError(f"convert mode requires asset inventory xls/xlsx in {inbox_dir}; found: {files_in_inbox}")

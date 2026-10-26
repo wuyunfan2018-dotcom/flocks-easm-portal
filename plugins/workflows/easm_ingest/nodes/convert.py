@@ -94,9 +94,22 @@ else:
     deps_reinstalled = []
     if missing:
         uv = shutil.which("uv")
-        install_cmd = ([uv, "pip", "install", "--python", sys.executable, *missing] if uv
-                       else [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "-q", *missing])
-        inst = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
+        for cand in (HOME / ".local" / "bin" / "uv.exe", HOME / ".local" / "bin" / "uv", HOME / ".cargo" / "bin" / "uv.exe"):
+            if not uv and cand.is_file():
+                uv = str(cand)
+        try:  # the package index Flocks itself uses for workflow requirements (CN locale -> Aliyun mirror)
+            from flocks.workflow.requirements import resolve_python_package_index_url
+            index_url = resolve_python_package_index_url()
+        except Exception:
+            index_url = None
+        indexes = [index_url] + ([] if index_url and "aliyun" in index_url else ["https://mirrors.aliyun.com/pypi/simple"])
+        for index in indexes:
+            idx = (["--default-index", index] if uv else ["--index-url", index]) if index else []
+            install_cmd = ([uv, "pip", "install", "--python", sys.executable, *idx, *missing] if uv
+                           else [sys.executable, "-m", "pip", "install", "--disable-pip-version-check", "-q", *idx, *missing])
+            inst = subprocess.run(install_cmd, capture_output=True, text=True, timeout=600)
+            if inst.returncode == 0:
+                break
         if inst.returncode != 0:
             tail = (inst.stderr or inst.stdout or "")[-1500:]
             raise RuntimeError("converter dependencies missing after a Flocks upgrade and reinstall failed: "

@@ -12,7 +12,8 @@ export default function Page() {
   const portal = usePortal();
   const n = portal.periods.length;
   return (
-    <PortalShell portal={portal} title="Reports and periods" sub={<PeriodSub portal={portal} extra={<>{fmt(n)} period{n === 1 ? '' : 's'} visible · customers only see published periods</>} />}>
+    <PortalShell portal={portal} title="Reports and periods" sub={<PeriodSub portal={portal} extra={<>{fmt(n)} period{n === 1 ? '' : 's'} visible · customers only see published periods</>} />}
+      empty={<Card title="Load the first period"><RunIngest portal={portal} /></Card>}>
       <Reports portal={portal} />
     </PortalShell>
   );

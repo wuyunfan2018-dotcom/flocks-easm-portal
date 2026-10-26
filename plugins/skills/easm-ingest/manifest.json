@@ -6,7 +6,7 @@
   "nameCn": "EASM 期次入库（对话）",
   "description": "Lets Rex load a new EASM reporting period from files attached in a chat by running the easm_ingest workflow.",
   "descriptionCn": "让 Rex 在对话里接收附件并调用 easm_ingest 工作流，把新一期 EASM 交付物入库为草稿。",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "author": "ThreatBook",
   "license": "Proprietary",
   "homepage": "https://github.com/wuyunfan2018-dotcom/flocks-easm-portal",

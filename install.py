@@ -88,6 +88,12 @@ def install(home: Path, *, dry: bool) -> None:
         copy_tree(PLUGINS / "tools" / "python" / "easm_workspace_query", plugins / "tools" / "python" / "easm_workspace_query", dry=dry, label="tool easm_workspace_query")
     if (PLUGINS / "agents" / "easm-analyst").is_dir():
         copy_tree(PLUGINS / "agents" / "easm-analyst", plugins / "agents" / "easm-analyst", dry=dry, label="agent easm-analyst")
+    # the inbox the ingest workflow reads (workspace/easm/inbox/<period_id>/); created so it can be found in Explorer
+    inbox = home / ".flocks" / "workspace" / "easm" / "inbox"
+    if not inbox.is_dir():
+        log(f"  inbox {inbox}: {'would create' if dry else 'created'}")
+        if not dry:
+            inbox.mkdir(parents=True, exist_ok=True)
 
 
 def copy_tree_file(src: Path, dst: Path, *, dry: bool) -> None:
@@ -611,6 +617,8 @@ def main() -> int:
             register(home, dry=True)
     else:
         post_install(home, want_hub=not args.no_hub, want_build=not args.no_build)
+    if os.environ.get("EASM_WRAPPER") == "1":  # install-windows.ps1 prints its own (Chinese) next steps
+        return 0
     log("")
     log("Next steps:")
     log("  1. Put a Fernet key in the EASM_SECRET_KEY environment variable of the Flocks service and restart Flocks")

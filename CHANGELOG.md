@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.4 — 2026-10-26
+
+- **Windows one-click installer** `install-windows.cmd` (+ `install-windows.ps1`): finds the Python of the Flocks virtualenv through `%USERPROFILE%\.local\bin\flocks.cmd` (no system Python needed), runs `install.py`, offers to generate `EASM_SECRET_KEY` into the user environment when none exists (never overwrites one), and offers to restart Flocks from its own process so the new key reaches the server. Flags: `-DryRun`, `-Uninstall`, `-NoKey`, `-NoRestart`, `-Yes`.
+- Chinese installation guide for Windows colleagues: `INSTALL-Windows.zh-CN.md`.
+- Converter dependency self-heal uses the package index Flocks itself picks (Aliyun mirror on Chinese-locale systems), falls back to the Aliyun mirror when the first index fails, and finds `uv` in `~/.local/bin` when it is not on PATH (the Flocks venv has no pip).
+- `.cmd` / `.ps1` files keep CRLF line endings in the repository.
+
 ## 0.9.3 — 2026-10-14
 
 - **Flocks upgrades no longer hide the portal (Flocks 2026.10.13+).** The scene-suite registration moved out of the Flocks install directory into the user directory: a Hub catalog in `~/.flocks/hub-extensions/threatbook-easm/` and a small start-up hook in `~/.flocks/plugins/tasks/` (plus `plugins/tools/python/`) that registers it with `flocks.extensions.register_hub_root`. The installer also writes the suite shell and Hub install records, so *Scene management* shows ThreatBook EASM as installed, and switches the `easm` workspace on. Older Flocks keep the previous bundled-catalog registration.
